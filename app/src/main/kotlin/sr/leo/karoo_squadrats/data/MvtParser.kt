@@ -1,14 +1,18 @@
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package sr.leo.karoo_squadrats.data
 
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.util.zip.GZIPInputStream
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.protobuf.ProtoBuf
+import kotlinx.serialization.protobuf.ProtoNumber
+import kotlinx.serialization.protobuf.ProtoPacked
 import kotlin.math.atan
 import kotlin.math.pow
 import kotlin.math.sinh
 
 /**
- * Minimal MVT (Mapbox Vector Tile) protobuf parser.
+ * Minimal MVT (Mapbox Vector Tile) parser.
  *
  * Parses gzipped MVT tiles and extracts polygon geometries from a named layer.
  * Coordinates are returned as lon/lat pairs derived from the tile position.
@@ -21,6 +25,26 @@ import kotlin.math.sinh
  * its own holes. Winding order distinguishes exterior rings from holes.
  */
 object MvtParser {
+
+    // -- MVT protobuf schema (only the fields we need) --
+    // See: https://github.com/mapbox/vector-tile-spec/blob/master/2.1/vector_tile.proto
+
+    @Serializable
+    private data class MvtTile(
+        @ProtoNumber(3) val layers: List<MvtLayer> = emptyList(),
+    )
+
+    @Serializable
+    private data class MvtLayer(
+        @ProtoNumber(1) val name: String = "",
+        @ProtoNumber(2) val features: List<MvtFeature> = emptyList(),
+        @ProtoNumber(5) val extent: Int = 4096,
+    )
+
+    @Serializable
+    private data class MvtFeature(
+        @ProtoNumber(4) @ProtoPacked val geometry: List<Int> = emptyList(),
+    )
 
     data class Ring(val points: List<Pair<Double, Double>>) // lon, lat pairs
 
@@ -36,34 +60,12 @@ object MvtParser {
         tileY: Int,
     ): List<Ring> {
         if (rawData.isEmpty()) return emptyList()
-
-        val data = decompress(rawData)
-
+        val tile = decodeTile(rawData)
         val rings = mutableListOf<Ring>()
-        var i = 0
-        while (i < data.size) {
-            val (tag, newI) = readVarint(data, i)
-            if (tag == null) break
-            i = newI
-            val fn = (tag shr 3).toInt()
-            val wt = (tag and 0x7).toInt()
-            if (wt == 2) {
-                val (length, newI2) = readVarint(data, i)
-                if (length == null) break
-                i = newI2
-                if (fn == 3) { // Layer
-                    val layerData = data.copyOfRange(i, i + length.toInt())
-                    val (name, extent, features) = parseLayer(layerData)
-                    if (name == layerName) {
-                        for (geomBytes in features) {
-                            val decoded = decodePolygonGeometry(geomBytes, tileZ, tileX, tileY, extent)
-                            rings.addAll(decoded)
-                        }
-                    }
-                }
-                i += length.toInt()
-            } else {
-                i = skipField(data, i, wt) ?: break
+        for (layer in tile.layers) {
+            if (layer.name != layerName) continue
+            for (feature in layer.features) {
+                rings.addAll(decodePolygonGeometry(feature.geometry, tileZ, tileX, tileY, layer.extent))
             }
         }
         return rings
@@ -74,133 +76,42 @@ object MvtParser {
      */
     fun hasFeatures(rawData: ByteArray, layerName: String = "squadrats"): Boolean {
         if (rawData.isEmpty()) return false
-        val data = decompress(rawData)
-
-        var i = 0
-        while (i < data.size) {
-            val (tag, newI) = readVarint(data, i)
-            if (tag == null) break
-            i = newI
-            val fn = (tag shr 3).toInt()
-            val wt = (tag and 0x7).toInt()
-            if (wt == 2) {
-                val (length, newI2) = readVarint(data, i)
-                if (length == null) break
-                i = newI2
-                if (fn == 3) {
-                    val layerData = data.copyOfRange(i, i + length.toInt())
-                    val (name, _, features) = parseLayer(layerData)
-                    if (name == layerName && features.isNotEmpty()) return true
-                }
-                i += length.toInt()
-            } else {
-                i = skipField(data, i, wt) ?: break
-            }
-        }
-        return false
+        val tile = decodeTile(rawData)
+        return tile.layers.any { it.name == layerName && it.features.isNotEmpty() }
     }
 
-    private data class LayerInfo(val name: String, val extent: Int, val featureGeometries: List<ByteArray>)
-
-    private fun parseLayer(data: ByteArray): LayerInfo {
-        var i = 0
-        var name = ""
-        var extent = 4096 // MVT default tile extent
-        val geoms = mutableListOf<ByteArray>()
-
-        while (i < data.size) {
-            val (tag, newI) = readVarint(data, i)
-            if (tag == null) break
-            i = newI
-            val fn = (tag shr 3).toInt()
-            val wt = (tag and 0x7).toInt()
-            if (wt == 2) {
-                val (length, newI2) = readVarint(data, i)
-                if (length == null) break
-                i = newI2
-                when (fn) {
-                    1 -> name = String(data, i, length.toInt(), Charsets.UTF_8) // name
-                    2 -> { // feature
-                        val geomBytes = extractGeometryFromFeature(data.copyOfRange(i, i + length.toInt()))
-                        if (geomBytes != null) geoms.add(geomBytes)
-                    }
-                }
-                i += length.toInt()
-            } else if (wt == 0) {
-                val (value, newI2) = readVarint(data, i)
-                if (value == null) break
-                i = newI2
-                if (fn == 5) extent = value.toInt() // extent
-            } else {
-                i = skipField(data, i, wt) ?: break
-            }
-        }
-        return LayerInfo(name, extent, geoms)
+    private fun decodeTile(rawData: ByteArray): MvtTile {
+        return ProtoBuf.decodeFromByteArray(MvtTile.serializer(), rawData)
     }
 
-    private fun extractGeometryFromFeature(data: ByteArray): ByteArray? {
-        var i = 0
-        while (i < data.size) {
-            val (tag, newI) = readVarint(data, i)
-            if (tag == null) break
-            i = newI
-            val fn = (tag shr 3).toInt()
-            val wt = (tag and 0x7).toInt()
-            if (wt == 2) {
-                val (length, newI2) = readVarint(data, i)
-                if (length == null) break
-                i = newI2
-                if (fn == 4) { // geometry
-                    return data.copyOfRange(i, i + length.toInt())
-                }
-                i += length.toInt()
-            } else if (wt == 0) {
-                val (_, newI2) = readVarint(data, i)
-                if (newI2 == i) break
-                i = newI2
-            } else {
-                i = skipField(data, i, wt) ?: break
-            }
-        }
-        return null
-    }
-
+    /**
+     * Decode MVT geometry commands (MoveTo, LineTo, ClosePath) into coordinate rings.
+     * See: https://github.com/mapbox/vector-tile-spec/tree/master/2.1#43-geometry-encoding
+     */
     private fun decodePolygonGeometry(
-        geomBytes: ByteArray,
+        geometry: List<Int>,
         tileZ: Int,
         tileX: Int,
         tileY: Int,
         extent: Int,
     ): List<Ring> {
-        // Read all varints
-        val vals = mutableListOf<Long>()
-        var pos = 0
-        while (pos < geomBytes.size) {
-            val (v, newPos) = readVarint(geomBytes, pos)
-            if (v == null) break
-            vals.add(v)
-            pos = newPos
-        }
-
         val rings = mutableListOf<Ring>()
         var ring = mutableListOf<Pair<Double, Double>>()
-        var cx = 0L
-        var cy = 0L
+        var cx = 0
+        var cy = 0
         var idx = 0
 
-        while (idx < vals.size) {
-            val cmdInt = vals[idx]; idx++
-            val cmdId = (cmdInt and 0x7).toInt()
-            val count = (cmdInt shr 3).toInt()
+        while (idx < geometry.size) {
+            val cmdInt = geometry[idx]; idx++
+            val cmdId = cmdInt and 0x7
+            val count = cmdInt ushr 3
 
             when (cmdId) {
                 1 -> { // MoveTo
                     for (j in 0 until count) {
-                        if (idx + 1 >= vals.size) break
-                        val dx = zigzagDecode(vals[idx]); idx++
-                        val dy = zigzagDecode(vals[idx]); idx++
-                        cx += dx
-                        cy += dy
+                        if (idx + 1 >= geometry.size) break
+                        cx += zigzagDecode(geometry[idx]); idx++
+                        cy += zigzagDecode(geometry[idx]); idx++
                         if (ring.isNotEmpty()) {
                             rings.add(Ring(ring.toList()))
                             ring = mutableListOf()
@@ -210,11 +121,9 @@ object MvtParser {
                 }
                 2 -> { // LineTo
                     for (j in 0 until count) {
-                        if (idx + 1 >= vals.size) break
-                        val dx = zigzagDecode(vals[idx]); idx++
-                        val dy = zigzagDecode(vals[idx]); idx++
-                        cx += dx
-                        cy += dy
+                        if (idx + 1 >= geometry.size) break
+                        cx += zigzagDecode(geometry[idx]); idx++
+                        cy += zigzagDecode(geometry[idx]); idx++
                         ring.add(tilePixelToLonLat(tileX, tileY, tileZ, cx.toDouble(), cy.toDouble(), extent))
                     }
                 }
@@ -233,7 +142,7 @@ object MvtParser {
         return rings
     }
 
-    private fun zigzagDecode(v: Long): Long = (v shr 1) xor -(v and 1)
+    private fun zigzagDecode(v: Int): Int = (v ushr 1) xor -(v and 1)
 
     private fun tilePixelToLonLat(
         tileX: Int,
@@ -248,49 +157,5 @@ object MvtParser {
         val latRad = atan(sinh(Math.PI * (1.0 - 2.0 * (tileY + py / extent) / n)))
         val lat = Math.toDegrees(latRad)
         return lon to lat
-    }
-
-    private fun decompress(data: ByteArray): ByteArray {
-        // Gzip magic bytes: 0x1F 0x8B
-        if (data.size < 2 || data[0] != 0x1F.toByte() || data[1] != 0x8B.toByte()) {
-            return data // not gzipped
-        }
-        val bais = ByteArrayInputStream(data)
-        val gis = GZIPInputStream(bais)
-        val baos = ByteArrayOutputStream()
-        val buffer = ByteArray(4096)
-        var len: Int
-        while (gis.read(buffer).also { len = it } != -1) {
-            baos.write(buffer, 0, len)
-        }
-        return baos.toByteArray()
-    }
-
-    private fun readVarint(data: ByteArray, startPos: Int): Pair<Long?, Int> {
-        var result = 0L
-        var shift = 0
-        var pos = startPos
-        while (pos < data.size) {
-            val b = data[pos].toInt() and 0xFF
-            pos++
-            result = result or ((b.toLong() and 0x7F) shl shift)
-            if (b and 0x80 == 0) return result to pos
-            shift += 7
-            if (shift >= 64) return null to pos
-        }
-        return null to pos
-    }
-
-    private fun skipField(data: ByteArray, pos: Int, wireType: Int): Int? {
-        return when (wireType) {
-            0 -> readVarint(data, pos).second
-            1 -> if (pos + 8 <= data.size) pos + 8 else null
-            2 -> {
-                val (len, newPos) = readVarint(data, pos)
-                if (len == null) null else newPos + len.toInt()
-            }
-            5 -> if (pos + 4 <= data.size) pos + 4 else null
-            else -> null
-        }
     }
 }

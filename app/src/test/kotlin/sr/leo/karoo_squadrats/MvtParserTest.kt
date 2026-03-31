@@ -3,8 +3,6 @@ package sr.leo.karoo_squadrats
 import sr.leo.karoo_squadrats.data.MvtParser
 import org.junit.Assert.*
 import org.junit.Test
-import java.io.ByteArrayOutputStream
-import java.util.zip.GZIPOutputStream
 
 class MvtParserTest {
 
@@ -94,21 +92,12 @@ class MvtParserTest {
         assertTrue(rings.isEmpty())
     }
 
-    // -- gzip handling --
+    // -- edge cases --
 
     @Test
-    fun `extractPolygons handles non-gzipped data gracefully`() {
-        // Non-gzipped invalid protobuf should not crash, just return empty
+    fun `extractPolygons handles invalid protobuf gracefully`() {
         val garbage = byteArrayOf(0x0A, 0x03, 0x41, 0x42, 0x43)
         val rings = MvtParser.extractPolygons(garbage, "squadrats", 10, 549, 335)
-        assertTrue(rings.isEmpty())
-    }
-
-    @Test
-    fun `extractPolygons handles gzipped empty content`() {
-        val baos = ByteArrayOutputStream()
-        GZIPOutputStream(baos).use { it.write(ByteArray(0)) }
-        val rings = MvtParser.extractPolygons(baos.toByteArray(), "squadrats", 10, 549, 335)
         assertTrue(rings.isEmpty())
     }
 
