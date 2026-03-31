@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Squadrats Overlay</string>
+    <string name="extension_name">Squadrats Overlay</string>
+    <string name="token_hint">User token</string>
+    <string name="timestamp_hint">Timestamp</string>
+    <string name="sync_radius_label">Sync radius (km)</string>
+    <string name="btn_sync">Sync Data</string>
+    <string name="sync_status_idle">Enter your token and timestamp, then tap Sync</string>
+    <string name="sync_status_running">Syncing… %1$d / %2$d tiles</string>
+    <string name="sync_status_done">Synced: %1$d collected out of %2$d tiles</string>
+    <string name="sync_status_error">Error: %1$s</string>
+    <string name="center_lat_hint">Center latitude</string>
+    <string name="center_lon_hint">Center longitude</string>
+    <string name="btn_use_location">Use Current Location</string>
+    <string name="tile_url_instructions">1. Open squadrats.com in a browser and log in\n2. Open DevTools (F12) → Network tab\n3. Filter by .pbf and reload the page\n4. Click any .pbf request and find the URL:\n    tiles1.squadrats.com/TOKEN/trophies/TIMESTAMP/…\n5. Enter the TOKEN and TIMESTAMP below</string>
+    <string name="waiting_for_gps">Waiting for GPS…</string>
+    <string name="cached_collected_tiles">Cached: %1$d collected tiles</string>
+</resources>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- 3x3 grid of squares: filled = collected, outline = uncollected -->
+    <!-- Row 1 -->
+    <path android:fillColor="#663399" android:pathData="M2,2h12v12H2z" />
+    <path android:fillColor="#663399" android:pathData="M18,2h12v12H18z" />
+    <path android:fillColor="#663399" android:pathData="M34,2h12v12H34z" />
+    <!-- Row 2 -->
+    <path android:fillColor="#663399" android:pathData="M2,18h12v12H2z" />
+    <path
+        android:strokeColor="#663399"
+        android:strokeWidth="2"
+        android:fillColor="#00000000"
+        android:pathData="M18,18h12v12H18z" />
+    <path android:fillColor="#663399" android:pathData="M34,18h12v12H34z" />
+    <!-- Row 3 -->
+    <path
+        android:strokeColor="#663399"
+        android:strokeWidth="2"
+        android:fillColor="#00000000"
+        android:pathData="M2,34h12v12H2z" />
+    <path android:fillColor="#663399" android:pathData="M18,34h12v12H18z" />
+    <path
+        android:strokeColor="#663399"
+        android:strokeWidth="2"
+        android:fillColor="#00000000"
+        android:pathData="M34,34h12v12H34z" />
+</vector>

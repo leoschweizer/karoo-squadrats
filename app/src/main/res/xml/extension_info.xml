@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ExtensionInfo
+    displayName="@string/app_name"
+    icon="@drawable/ic_squadrats"
+    id="karoo-squadrats"
+    scansDevices="false"
+    mapLayer="true" />
