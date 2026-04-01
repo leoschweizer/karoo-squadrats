@@ -1,8 +1,9 @@
-@file:OptIn(ExperimentalSerializationApi::class)
+@file:OptIn(InternalSerializationApi::class, ExperimentalSerializationApi::class)
 
 package sr.leo.karoo_squadrats.data
 
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlinx.serialization.protobuf.ProtoNumber
@@ -108,8 +109,8 @@ object MvtParser {
 
             when (cmdId) {
                 1 -> { // MoveTo
-                    for (j in 0 until count) {
-                        if (idx + 1 >= geometry.size) break
+                    repeat(count) {
+                        if (idx + 1 >= geometry.size) return@repeat
                         cx += zigzagDecode(geometry[idx]); idx++
                         cy += zigzagDecode(geometry[idx]); idx++
                         if (ring.isNotEmpty()) {
@@ -120,8 +121,8 @@ object MvtParser {
                     }
                 }
                 2 -> { // LineTo
-                    for (j in 0 until count) {
-                        if (idx + 1 >= geometry.size) break
+                    repeat(count) {
+                        if (idx + 1 >= geometry.size) return@repeat
                         cx += zigzagDecode(geometry[idx]); idx++
                         cy += zigzagDecode(geometry[idx]); idx++
                         ring.add(tilePixelToLonLat(tileX, tileY, tileZ, cx.toDouble(), cy.toDouble(), extent))
