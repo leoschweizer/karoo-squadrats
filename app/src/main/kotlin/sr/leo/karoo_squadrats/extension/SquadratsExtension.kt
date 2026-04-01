@@ -56,6 +56,8 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
         var lastDrawZoom = Double.NaN
 
         val job = CoroutineScope(Dispatchers.IO).launch {
+            tileRepo.loadCachedTiles()
+
             // Seed location flow with last-known position so tiles render before first GPS fix
             val locationFlow = karooSystem.consumerFlow<OnLocationChanged>()
             val seededLocationFlow = if (prefs.centerLat != 0.0 || prefs.centerLon != 0.0) {
@@ -96,9 +98,7 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
                     lastDrawZoom = zoom
 
                     val visibleTiles = SquadratGrid.visibleTiles(lat, lon, zoom)
-                    Log.d(TAG, "Redraw: ${visibleTiles.size} visible tiles, ${tileRepo.collectedCount} cached collected")
-                    tileRepo.loadCachedTiles()
-                    Log.d(TAG, "After reload: ${tileRepo.collectedCount} collected")
+                    Log.d(TAG, "Redraw: ${visibleTiles.size} visible tiles, ${tileRepo.collectedCount} collected")
                     val newPolylineIds = mutableSetOf<String>()
 
                     // Draw outlines for uncollected tiles
@@ -148,7 +148,7 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
         // Semi-transparent purple (Squadrats brand) for uncollected tile borders
         const val OVERLAY_COLOR = 0x80663399.toInt()
         const val OVERLAY_WIDTH = 3
-        // ~0.5 tile widths at z=14 — triggers redraw when GPS moves ~25% of the 3x buffer
+        // ~0.5 tile widths at z=14 - triggers redraw when GPS moves ~25% of the 3x buffer
         const val REDRAW_THRESHOLD_DEG = 0.012
     }
 }
