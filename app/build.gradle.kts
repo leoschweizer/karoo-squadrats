@@ -11,14 +11,26 @@ android {
         applicationId = "sr.leo.karoo_squadrats"
         minSdk = 23
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = providers.environmentVariable("VERSION_CODE").map { it.toInt() }.getOrElse(1)
+        versionName = providers.environmentVariable("VERSION_NAME").getOrElse("dev")
     }
 
+    signingConfigs {
+        val keystorePath = providers.environmentVariable("KEYSTORE_PATH")
+        if (keystorePath.isPresent) {
+            create("release") {
+                storeFile = file(keystorePath.get())
+                storePassword = providers.environmentVariable("KEYSTORE_PASSWORD").get()
+                keyAlias = providers.environmentVariable("KEY_ALIAS").get()
+                keyPassword = providers.environmentVariable("KEY_PASSWORD").get()
+            }
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            signingConfig = signingConfigs.findByName("release")
         }
     }
     compileOptions {
@@ -27,6 +39,38 @@ android {
     }
     buildFeatures {
         buildConfig = true
+    }
+}
+
+tasks.register("generateManifest") {
+    description = "Generates manifest.json for Karoo Companion App sideloading"
+    group = "build"
+    doLast {
+        val manifestFile = file("$projectDir/manifest.json")
+        val versionName = android.defaultConfig.versionName
+        val versionCode = android.defaultConfig.versionCode
+        val manifest = """
+            {
+              "label": "Squadrats Overlay",
+              "packageName": "sr.leo.karoo_squadrats",
+              "latestApkUrl": "https://github.com/leoschweizer/karoo-squadrats/releases/latest/download/karoo-squadrats-release.apk",
+              "latestVersion": "$versionName",
+              "latestVersionCode": $versionCode,
+              "developer": "github.com/leoschweizer",
+              "description": "Displays uncollected Squadrats as colored grid outlines on the map during rides.",
+              "tags": ["map"],
+              "iconUrl": "https://github.com/leoschweizer/karoo-squadrats/releases/download/v$versionName/karoo-squadrats.png"
+            }
+
+        """.trimIndent()
+        manifestFile.writeText(manifest)
+        println("Generated manifest.json with version $versionName ($versionCode)")
+    }
+}
+
+afterEvaluate {
+    tasks.named("assembleRelease") {
+        dependsOn("generateManifest")
     }
 }
 
