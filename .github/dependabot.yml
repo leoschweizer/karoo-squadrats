@@ -1,4 +1,10 @@
 version: 2
+registries:
+  hammerheadnav:
+    type: maven-repository
+    url: https://maven.pkg.github.com/hammerheadnav/karoo-ext
+    username: x-access-token
+    password: ${{ secrets.GITHUB_TOKEN }}
 updates:
 - package-ecosystem: "github-actions"
   directory: "/"
@@ -10,6 +16,8 @@ updates:
         - "major"
 - package-ecosystem: "gradle"
   directory: "/"
+  registries:
+    - hammerheadnav
   schedule:
     interval: "monthly"
   groups:
