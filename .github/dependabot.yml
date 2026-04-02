@@ -8,3 +8,16 @@ updates:
       actions-major:
         update-types:
         - "major"
+- package-ecosystem: "gradle"
+  directory: "/"
+  schedule:
+    interval: "monthly"
+  groups:
+    androidx:
+      patterns:
+      - "androidx.*"
+      - "com.google.android.material:*"
+    jetbrains-kotlin:
+      patterns:
+      - "org.jetbrains.kotlin*"
+      - "org.jetbrains.kotlinx:*"
