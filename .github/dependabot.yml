@@ -21,3 +21,5 @@ updates:
       patterns:
       - "org.jetbrains.kotlin*"
       - "org.jetbrains.kotlinx:*"
+  ignore:
+    - dependency-name: "io.hammerhead:karoo-ext"
