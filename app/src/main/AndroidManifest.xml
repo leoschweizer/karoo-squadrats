@@ -11,6 +11,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MaterialComponents.Light.DarkActionBar">
 
+        <meta-data
+            android:name="io.hammerhead.karooext.MANIFEST_URL"
+            android:value="https://github.com/leoschweizer/karoo-squadrats/releases/latest/download/manifest.json" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
