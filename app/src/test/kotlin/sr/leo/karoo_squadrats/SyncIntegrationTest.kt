@@ -8,8 +8,8 @@ import org.junit.Test
 
 /**
  * Simulates the exact data path that occurs during sync on a real device:
- * OkHttp transparently decompresses the gzip response, so MvtParser receives
- * raw protobuf bytes (not gzipped).
+ * the HTTP response body is decompressed (if gzipped), so MvtParser receives
+ * raw protobuf bytes.
  */
 class SyncIntegrationTest {
 

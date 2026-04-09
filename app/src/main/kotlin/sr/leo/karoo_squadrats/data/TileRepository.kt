@@ -1,18 +1,18 @@
 package sr.leo.karoo_squadrats.data
 
 import android.util.Log
+import io.hammerhead.karooext.KarooSystemService
+import io.hammerhead.karooext.models.HttpResponseState
+import io.hammerhead.karooext.models.OnHttpResponse
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
+import sr.leo.karoo_squadrats.extension.consumerFlow
 import sr.leo.karoo_squadrats.grid.SquadratGrid
 import sr.leo.karoo_squadrats.grid.SquadratGrid.TileCoord
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.io.IOException
-import java.util.concurrent.TimeUnit
+import java.io.ByteArrayInputStream
+import java.util.zip.GZIPInputStream
 
 class TileRepository(private val prefs: SquadratsPreferences) {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .build()
 
     @Volatile
     private var collectedTiles: Set<Long> = emptySet()
@@ -42,7 +42,8 @@ class TileRepository(private val prefs: SquadratsPreferences) {
      * 3. Test each z=14 tile center against those polygons
      * 4. Store the set of collected z=14 tile keys
      */
-    fun sync(
+    suspend fun sync(
+        karooSystem: KarooSystemService,
         centerLat: Double,
         centerLon: Double,
         radiusKm: Double,
@@ -77,25 +78,34 @@ class TileRepository(private val prefs: SquadratsPreferences) {
                     .replace("{x}", tile.x.toString())
                     .replace("{y}", tile.y.toString())
 
-                val request = Request.Builder().url(url).build()
-                client.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        val body = response.body?.bytes()
-                        Log.d(TAG, "Tile ${tile.x}/${tile.y}: HTTP ${response.code}, body=${body?.size ?: 0} bytes")
-                        if (body != null && body.isNotEmpty()) {
-                            val rings = MvtParser.extractPolygons(
-                                body, "squadrats", fetchZoom, tile.x, tile.y
-                            )
-                            Log.d(TAG, "  -> extracted ${rings.size} rings")
-                            allRings.addAll(rings)
-                        }
-                    } else {
-                        httpErrors++
-                        val errBody = response.body?.string()?.take(200) ?: ""
-                        Log.w(TAG, "Tile ${tile.x}/${tile.y}: HTTP ${response.code} $errBody")
+                val response = karooSystem.consumerFlow<OnHttpResponse>(
+                    OnHttpResponse.MakeHttpRequest(
+                        method = "GET",
+                        url = url,
+                        headers = mapOf("Accept-Encoding" to "gzip"),
+                        waitForConnection = false,
+                    ),
+                ).mapNotNull { it.state as? HttpResponseState.Complete }
+                    .first()
+
+                if (response.error != null) {
+                    errors++
+                    Log.w(TAG, "Tile ${tile.x}/${tile.y}: error=${response.error}")
+                } else if (response.statusCode in 200..299) {
+                    val body = response.body?.let { decompressIfGzipped(it) }
+                    Log.d(TAG, "Tile ${tile.x}/${tile.y}: HTTP ${response.statusCode}, body=${body?.size ?: 0} bytes")
+                    if (body != null && body.isNotEmpty()) {
+                        val rings = MvtParser.extractPolygons(
+                            body, "squadrats", fetchZoom, tile.x, tile.y
+                        )
+                        Log.d(TAG, "  -> extracted ${rings.size} rings")
+                        allRings.addAll(rings)
                     }
+                } else {
+                    httpErrors++
+                    Log.w(TAG, "Tile ${tile.x}/${tile.y}: HTTP ${response.statusCode}")
                 }
-            } catch (e: IOException) {
+            } catch (e: Exception) {
                 errors++
                 Log.w(TAG, "Tile ${tile.x}/${tile.y}: ${e.javaClass.simpleName}: ${e.message}")
             }
@@ -104,7 +114,7 @@ class TileRepository(private val prefs: SquadratsPreferences) {
         }
 
         if (allRings.isEmpty()) {
-            // No collected area found — store empty set
+            // No collected area found - store empty set
             Log.w(TAG, "No rings found. errors=$errors, httpErrors=$httpErrors, fetched=$fetched")
             collectedTiles = emptySet()
             prefs.saveCollectedTiles(emptySet())
@@ -167,6 +177,18 @@ class TileRepository(private val prefs: SquadratsPreferences) {
 
     companion object {
         private const val TAG = "SquadratSync"
+
+        /**
+         * Detect GZIP magic bytes and decompress if needed.
+         * The karoo-ext HTTP mechanism may not transparently decompress gzip responses.
+         */
+        fun decompressIfGzipped(data: ByteArray): ByteArray {
+            if (data.size >= 2 && data[0] == 0x1f.toByte() && data[1] == 0x8b.toByte()) {
+                return GZIPInputStream(ByteArrayInputStream(data)).readBytes()
+            }
+            return data
+        }
+
         /**
          * Ray-casting point-in-polygon test.
          */
