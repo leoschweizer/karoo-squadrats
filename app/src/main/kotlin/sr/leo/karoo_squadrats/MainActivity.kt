@@ -1,5 +1,6 @@
 package sr.leo.karoo_squadrats
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.View
@@ -16,9 +17,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import sr.leo.karoo_squadrats.data.CoordinateFormat
 import sr.leo.karoo_squadrats.data.SquadratsPreferences
 import sr.leo.karoo_squadrats.data.TileRepository
 
+@SuppressLint("DefaultLocale", "SetTextI18n")
 class MainActivity : AppCompatActivity() {
     private lateinit var prefs: SquadratsPreferences
     private lateinit var tileRepo: TileRepository
@@ -57,10 +60,10 @@ class MainActivity : AppCompatActivity() {
         editToken.setText(prefs.userToken)
         editTimestamp.setText(prefs.tileTimestamp)
         if (prefs.centerLat != 0.0) {
-            editCenterLat.setText(String.format("%.6f", prefs.centerLat))
+            editCenterLat.setText(CoordinateFormat.formatCoordinate(prefs.centerLat))
         }
         if (prefs.centerLon != 0.0) {
-            editCenterLon.setText(String.format("%.6f", prefs.centerLon))
+            editCenterLon.setText(CoordinateFormat.formatCoordinate(prefs.centerLon))
         }
         editSyncRadius.setText(prefs.syncRadiusKm.toString())
 
@@ -114,8 +117,8 @@ class MainActivity : AppCompatActivity() {
             if (!received) {
                 received = true
                 runOnUiThread {
-                    editCenterLat.setText(String.format("%.6f", event.lat))
-                    editCenterLon.setText(String.format("%.6f", event.lng))
+                    editCenterLat.setText(CoordinateFormat.formatCoordinate(event.lat))
+                    editCenterLon.setText(CoordinateFormat.formatCoordinate(event.lng))
                     btnUseLocation.isEnabled = true
                     btnUseLocation.text = getString(R.string.btn_use_location)
                 }
@@ -146,8 +149,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val lat = editCenterLat.text.toString().toDoubleOrNull()
-        val lon = editCenterLon.text.toString().toDoubleOrNull()
+        val lat = CoordinateFormat.parseCoordinate(editCenterLat.text.toString())
+        val lon = CoordinateFormat.parseCoordinate(editCenterLon.text.toString())
         if (lat == null || lon == null) {
             Toast.makeText(this, "Enter valid center coordinates", Toast.LENGTH_SHORT).show()
             return

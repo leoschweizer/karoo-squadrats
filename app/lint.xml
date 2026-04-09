@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Timber is a transitive dependency from karoo-ext, not directly used -->
+    <issue id="LogNotTimber" severity="ignore" />
+</lint>
