@@ -16,7 +16,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Tile Server Credentials"
+            android:text="@string/section_credentials"
             android:textSize="14sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
@@ -53,7 +53,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Sync Center Location"
+            android:text="@string/section_sync_center"
             android:textSize="14sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
@@ -62,6 +62,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
+            android:baselineAligned="false"
             android:layout_marginBottom="8dp">
 
             <com.google.android.material.textfield.TextInputLayout
@@ -112,7 +113,7 @@
                 android:layout_height="wrap_content"
                 android:hint="@string/sync_radius_label"
                 android:inputType="number"
-                android:text="30" />
+                android:text="@string/default_sync_radius" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <Button

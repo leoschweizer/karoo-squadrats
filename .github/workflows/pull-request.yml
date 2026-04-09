@@ -18,6 +18,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
+      - name: Run lint
+        env:
+          USERNAME: ${{ github.actor }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew app:lintDebug
+
       - name: Run unit tests
         env:
           USERNAME: ${{ github.actor }}
