@@ -10,8 +10,8 @@ This project is an independent, unofficial community project. It is not affiliat
 
 Releases are available via [GitHub Releases](https://github.com/leoschweizer/karoo-squadrats/releases/latest).
 
-- Karoo (latest generation): Share the release link above to the Karoo Companion App — see [Companion App - Sideloading](https://support.hammerhead.io/hc/en-us/articles/31576497036827-Companion-App-Sideloading)
-- Karoo 2: Download the APK and sideload via `adb install app-release.apk` - see [DC Rainmakers tutorial](https://www.dcrainmaker.com/2021/02/how-to-sideload-android-apps-on-your-hammerhead-karoo-1-karoo-2.html) for instructions
+- Karoo (latest generation): Share the release link above to the Karoo Companion App - see [Companion App - Sideloading](https://support.hammerhead.io/hc/en-us/articles/31576497036827-Companion-App-Sideloading)
+- Karoo 2: Download the APK and sideload via `adb install karoo-squadrats-release.apk` - see [DC Rainmakers tutorial](https://www.dcrainmaker.com/2021/02/how-to-sideload-android-apps-on-your-hammerhead-karoo-1-karoo-2.html) for instructions
 
 ### 2. Get your Squadrats token and timestamp
 
@@ -39,7 +39,7 @@ Squadrats doesn't have a public API, but serves your data as vector map tiles. Y
 2. Enter your **Token** and **Timestamp**
 3. Set your **sync center** - either tap "Use Current Location" for GPS, or manually enter the latitude/longitude of the area you ride in
 4. Set the **sync radius** - this determines how large an area of tile data to download
-5. Tap **Sync Data** - the Karoo will download tile data over WiFi.
+5. Tap **Sync Data** - the Karoo will download tile data using the Karoo's built-in HTTP mechanism (WiFi when available, or via Bluetooth through the companion app if supported).
 
 ### 4. Go for a ride
 

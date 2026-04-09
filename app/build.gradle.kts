@@ -76,7 +76,6 @@ afterEvaluate {
 
 dependencies {
     implementation("io.hammerhead:karoo-ext:1.1.8")
-    implementation("com.squareup.okhttp3:okhttp:5.3.2")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("com.google.android.material:material:1.13.0")
     implementation("androidx.constraintlayout:constraintlayout:2.2.1")

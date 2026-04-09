@@ -12,6 +12,10 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import io.hammerhead.karooext.KarooSystemService
 import io.hammerhead.karooext.models.OnLocationChanged
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import sr.leo.karoo_squadrats.data.SquadratsPreferences
 import sr.leo.karoo_squadrats.data.TileRepository
 
@@ -20,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tileRepo: TileRepository
     private val karooSystem by lazy { KarooSystemService(this) }
     private var locationConsumerId: String? = null
+    private var syncJob: Job? = null
 
     private lateinit var editToken: EditText
     private lateinit var editTimestamp: EditText
@@ -92,6 +97,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
+        syncJob?.cancel()
+        syncJob = null
         locationConsumerId?.let { karooSystem.removeConsumer(it) }
         locationConsumerId = null
         karooSystem.disconnect()
@@ -169,8 +176,9 @@ class MainActivity : AppCompatActivity() {
         progressSync.visibility = View.VISIBLE
         progressSync.progress = 0
 
-        Thread {
+        syncJob = CoroutineScope(Dispatchers.IO).launch {
             tileRepo.sync(
+                karooSystem,
                 lat,
                 lon,
                 radiusKm.toDouble(),
@@ -200,6 +208,6 @@ class MainActivity : AppCompatActivity() {
                     }
                 },
             )
-        }.start()
+        }
     }
 }
