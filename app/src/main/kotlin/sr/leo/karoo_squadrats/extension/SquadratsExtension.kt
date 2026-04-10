@@ -10,8 +10,9 @@ import io.hammerhead.karooext.models.MapEffect
 import io.hammerhead.karooext.models.OnLocationChanged
 import io.hammerhead.karooext.models.OnMapZoomLevel
 import io.hammerhead.karooext.models.ShowPolyline
-import sr.leo.karoo_squadrats.data.SquadratsPreferences
+import sr.leo.karoo_squadrats.data.SquadratsSettings
 import sr.leo.karoo_squadrats.data.TileRepository
+import sr.leo.karoo_squadrats.data.db.SquadratsDatabase
 import sr.leo.karoo_squadrats.grid.SquadratGrid
 import sr.leo.karoo_squadrats.map.ContourExtractor
 import sr.leo.karoo_squadrats.map.PolylineEncoder
@@ -27,17 +28,18 @@ import kotlin.math.pow
 
 class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION_NAME) {
     private lateinit var karooSystem: KarooSystemService
-    private lateinit var prefs: SquadratsPreferences
+    private lateinit var settings: SquadratsSettings
     private lateinit var tileRepo: TileRepository
     private var serviceJob: Job? = null
 
     override fun onCreate() {
         super.onCreate()
         karooSystem = KarooSystemService(this)
-        prefs = SquadratsPreferences(this)
-        tileRepo = TileRepository(prefs)
-        tileRepo.loadCachedTiles()
+        settings = SquadratsSettings(this)
+        val db = SquadratsDatabase.getInstance(this)
+        tileRepo = TileRepository(db.collectedSquadratDao())
         serviceJob = CoroutineScope(Dispatchers.IO).launch {
+            tileRepo.loadCachedTiles()
             karooSystem.connect()
         }
     }
@@ -61,9 +63,11 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
 
             // Seed location flow with last-known position so tiles render before first GPS fix
             val locationFlow = karooSystem.consumerFlow<OnLocationChanged>()
-            val seededLocationFlow = if (prefs.centerLat != 0.0 || prefs.centerLon != 0.0) {
+            val centerLat = settings.getCenterLat()
+            val centerLon = settings.getCenterLon()
+            val seededLocationFlow = if (centerLat != 0.0 || centerLon != 0.0) {
                 kotlinx.coroutines.flow.flow {
-                    emit(OnLocationChanged(prefs.centerLat, prefs.centerLon, null))
+                    emit(OnLocationChanged(centerLat, centerLon, null))
                     locationFlow.collect { emit(it) }
                 }
             } else {

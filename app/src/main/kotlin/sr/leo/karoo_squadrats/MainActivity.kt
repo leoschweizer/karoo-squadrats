@@ -18,12 +18,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import sr.leo.karoo_squadrats.data.CoordinateFormat
-import sr.leo.karoo_squadrats.data.SquadratsPreferences
+import sr.leo.karoo_squadrats.data.SquadratsSettings
 import sr.leo.karoo_squadrats.data.TileRepository
+import sr.leo.karoo_squadrats.data.db.SquadratsDatabase
 
 @SuppressLint("DefaultLocale", "SetTextI18n")
 class MainActivity : AppCompatActivity() {
-    private lateinit var prefs: SquadratsPreferences
+    private lateinit var settings: SquadratsSettings
     private lateinit var tileRepo: TileRepository
     private val karooSystem by lazy { KarooSystemService(this) }
     private var locationConsumerId: String? = null
@@ -43,8 +44,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        prefs = SquadratsPreferences(this)
-        tileRepo = TileRepository(prefs)
+        settings = SquadratsSettings(this)
+        val db = SquadratsDatabase.getInstance(this)
+        tileRepo = TileRepository(db.collectedSquadratDao())
 
         editToken = findViewById(R.id.editToken)
         editTimestamp = findViewById(R.id.editTimestamp)
@@ -56,21 +58,33 @@ class MainActivity : AppCompatActivity() {
         progressSync = findViewById(R.id.progressSync)
         txtSyncStatus = findViewById(R.id.txtSyncStatus)
 
-        // Load saved values
-        editToken.setText(prefs.userToken)
-        editTimestamp.setText(prefs.tileTimestamp)
-        if (prefs.centerLat != 0.0) {
-            editCenterLat.setText(CoordinateFormat.formatCoordinate(prefs.centerLat))
-        }
-        if (prefs.centerLon != 0.0) {
-            editCenterLon.setText(CoordinateFormat.formatCoordinate(prefs.centerLon))
-        }
-        editSyncRadius.setText(prefs.syncRadiusKm.toString())
+        // Load saved values and cached tiles asynchronously
+        CoroutineScope(Dispatchers.Main).launch {
+            editToken.setText(settings.getUserToken())
+            editTimestamp.setText(settings.getTileTimestamp())
+            val lat = settings.getCenterLat()
+            val lon = settings.getCenterLon()
+            if (lat != 0.0) {
+                editCenterLat.setText(CoordinateFormat.formatCoordinate(lat))
+            }
+            if (lon != 0.0) {
+                editCenterLon.setText(CoordinateFormat.formatCoordinate(lon))
+            }
+            editSyncRadius.setText(settings.getSyncRadiusKm().toString())
 
-        // Show cached tile count
-        tileRepo.loadCachedTiles()
-        if (tileRepo.collectedCount > 0) {
-            txtSyncStatus.text = getString(R.string.cached_collected_tiles, tileRepo.collectedCount)
+            tileRepo.loadCachedTiles()
+            if (tileRepo.collectedCount > 0) {
+                val lastSync = db.collectedSquadratDao().maxSyncedAt()
+                val lastSyncText = if (lastSync != null) {
+                    java.text.DateFormat.getDateTimeInstance(
+                        java.text.DateFormat.MEDIUM,
+                        java.text.DateFormat.SHORT,
+                    ).format(java.util.Date(lastSync))
+                } else {
+                    "unknown"
+                }
+                txtSyncStatus.text = getString(R.string.cached_collected_tiles, tileRepo.collectedCount, lastSyncText)
+            }
         }
 
         btnUseLocation.setOnClickListener { fetchCurrentLocation() }
@@ -167,21 +181,22 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Save settings
-        prefs.userToken = token
-        prefs.tileTimestamp = timestamp
-        prefs.centerLat = lat
-        prefs.centerLon = lon
-        prefs.syncRadiusKm = radiusKm
-
         // Start sync on background thread
         btnSync.isEnabled = false
         progressSync.visibility = View.VISIBLE
         progressSync.progress = 0
 
         syncJob = CoroutineScope(Dispatchers.IO).launch {
+            // Save settings
+            settings.setUserToken(token)
+            settings.setTileTimestamp(timestamp)
+            settings.setCenterLat(lat)
+            settings.setCenterLon(lon)
+            settings.setSyncRadiusKm(radiusKm)
+
             tileRepo.sync(
                 karooSystem,
+                settings.getTileUrlTemplate(),
                 lat,
                 lon,
                 radiusKm.toDouble(),
