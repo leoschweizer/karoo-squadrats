@@ -13,7 +13,7 @@
     <string name="center_lon_hint">Center longitude</string>
     <string name="btn_use_location">Use Current Location</string>
     <string name="waiting_for_gps">Waiting for GPS…</string>
-    <string name="cached_collected_tiles" tools:ignore="PluralsCandidate">Cached: %1$d collected tiles</string>
+    <string name="cached_collected_tiles" tools:ignore="PluralsCandidate">Cached: %1$d collected tiles (last sync: %2$s)</string>
     <string name="section_credentials">Tile Server Credentials</string>
     <string name="section_sync_center">Sync Center Location</string>
     <string name="default_sync_radius">30</string>

@@ -6,19 +6,21 @@ import io.hammerhead.karooext.models.HttpResponseState
 import io.hammerhead.karooext.models.OnHttpResponse
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
+import sr.leo.karoo_squadrats.data.db.CollectedSquadrat
+import sr.leo.karoo_squadrats.data.db.CollectedSquadratDao
 import sr.leo.karoo_squadrats.extension.consumerFlow
 import sr.leo.karoo_squadrats.grid.SquadratGrid
 import sr.leo.karoo_squadrats.grid.SquadratGrid.TileCoord
 import java.io.ByteArrayInputStream
 import java.util.zip.GZIPInputStream
 
-class TileRepository(private val prefs: SquadratsPreferences) {
+class TileRepository(private val dao: CollectedSquadratDao) {
 
     @Volatile
     private var collectedTiles: Set<Long> = emptySet()
 
-    fun loadCachedTiles() {
-        collectedTiles = prefs.loadCollectedTiles()
+    suspend fun loadCachedTiles() {
+        collectedTiles = dao.getAll().map { TileCoord(it.x, it.y).toKey() }.toHashSet()
     }
 
     fun isCollected(tile: TileCoord): Boolean {
@@ -44,12 +46,12 @@ class TileRepository(private val prefs: SquadratsPreferences) {
      */
     suspend fun sync(
         karooSystem: KarooSystemService,
+        tileUrlTemplate: String,
         centerLat: Double,
         centerLon: Double,
         radiusKm: Double,
         callback: SyncCallback,
     ) {
-        val tileUrlTemplate = prefs.tileUrlTemplate
         if (tileUrlTemplate.isEmpty()) {
             callback.onError("Enter your user token and timestamp first")
             return
@@ -114,10 +116,16 @@ class TileRepository(private val prefs: SquadratsPreferences) {
         }
 
         if (allRings.isEmpty()) {
-            // No collected area found - store empty set
+            // No collected area found - clear the synced region
             Log.w(TAG, "No rings found. errors=$errors, httpErrors=$httpErrors, fetched=$fetched")
-            collectedTiles = emptySet()
-            prefs.saveCollectedTiles(emptySet())
+            val displayTiles = SquadratGrid.tilesInRadius(centerLat, centerLon, radiusKm)
+            if (displayTiles.isNotEmpty()) {
+                dao.deleteInBounds(
+                    displayTiles.minOf { it.x }, displayTiles.maxOf { it.x },
+                    displayTiles.minOf { it.y }, displayTiles.maxOf { it.y },
+                )
+            }
+            collectedTiles = dao.getAll().map { TileCoord(it.x, it.y).toKey() }.toHashSet()
             if (errors == totalFetch) {
                 callback.onError("All $errors tile requests failed. Check internet connection.")
             } else if (errors + httpErrors > 0) {
@@ -152,7 +160,8 @@ class TileRepository(private val prefs: SquadratsPreferences) {
         }
 
         // Exterior rings (clockwise in MVT) add area, interior rings (ccw) subtract
-        val collected = mutableSetOf<Long>()
+        val collected = mutableListOf<CollectedSquadrat>()
+        val now = System.currentTimeMillis()
         for (tile in displayTiles) {
             val (lon, lat) = SquadratGrid.tileCenterLonLat(tile)
             var inside = false
@@ -164,12 +173,20 @@ class TileRepository(private val prefs: SquadratsPreferences) {
                 }
             }
             if (inside) {
-                collected.add(tile.toKey())
+                collected.add(CollectedSquadrat(tile.x, tile.y, now))
             }
         }
 
-        collectedTiles = collected
-        prefs.saveCollectedTiles(collected)
+        // Incremental merge: clear the synced region, then insert fresh data
+        val xMin = displayTiles.minOf { it.x }
+        val xMax = displayTiles.maxOf { it.x }
+        val yMin = displayTiles.minOf { it.y }
+        val yMax = displayTiles.maxOf { it.y }
+        dao.deleteInBounds(xMin, xMax, yMin, yMax)
+        dao.insertAll(collected)
+
+        // Refresh in-memory cache from the full database
+        collectedTiles = dao.getAll().map { TileCoord(it.x, it.y).toKey() }.toHashSet()
         Log.d(TAG, "Sync done: ${collected.size} collected out of ${displayTiles.size} z14 tiles, from ${allRings.size} polygon rings")
         callback.onProgress(totalFetch + 1, totalFetch + 1)
         callback.onComplete(collected.size, displayTiles.size)
