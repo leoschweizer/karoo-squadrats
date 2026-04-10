@@ -16,19 +16,19 @@ import java.util.zip.GZIPInputStream
 
 class TileRepository(private val dao: CollectedSquadratDao) {
 
-    @Volatile
-    private var collectedTiles: Set<Long> = emptySet()
-
-    suspend fun loadCachedTiles() {
-        collectedTiles = dao.getAll().map { TileCoord(it.x, it.y).toKey() }.toHashSet()
+    /**
+     * Query collected tiles within a bounding box from the database.
+     * Returns the set of tile keys that are collected within the given tile coordinate range.
+     */
+    suspend fun collectedInBounds(
+        xMin: Int, xMax: Int, yMin: Int, yMax: Int,
+    ): Set<Long> {
+        return dao.findInBounds(xMin, xMax, yMin, yMax)
+            .map { TileCoord(it.x, it.y).toKey() }
+            .toHashSet()
     }
 
-    fun isCollected(tile: TileCoord): Boolean {
-        return collectedTiles.contains(tile.toKey())
-    }
-
-    val collectedCount: Int
-        get() = collectedTiles.size
+    suspend fun collectedCount(): Int = dao.count()
 
     interface SyncCallback {
         fun onProgress(fetched: Int, total: Int)
@@ -125,7 +125,6 @@ class TileRepository(private val dao: CollectedSquadratDao) {
                     displayTiles.minOf { it.y }, displayTiles.maxOf { it.y },
                 )
             }
-            collectedTiles = dao.getAll().map { TileCoord(it.x, it.y).toKey() }.toHashSet()
             if (errors == totalFetch) {
                 callback.onError("All $errors tile requests failed. Check internet connection.")
             } else if (errors + httpErrors > 0) {
@@ -185,8 +184,6 @@ class TileRepository(private val dao: CollectedSquadratDao) {
         dao.deleteInBounds(xMin, xMax, yMin, yMax)
         dao.insertAll(collected)
 
-        // Refresh in-memory cache from the full database
-        collectedTiles = dao.getAll().map { TileCoord(it.x, it.y).toKey() }.toHashSet()
         Log.d(TAG, "Sync done: ${collected.size} collected out of ${displayTiles.size} z14 tiles, from ${allRings.size} polygon rings")
         callback.onProgress(totalFetch + 1, totalFetch + 1)
         callback.onComplete(collected.size, displayTiles.size)

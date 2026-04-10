@@ -39,7 +39,6 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
         val db = SquadratsDatabase.getInstance(this)
         tileRepo = TileRepository(db.collectedSquadratDao())
         serviceJob = CoroutineScope(Dispatchers.IO).launch {
-            tileRepo.loadCachedTiles()
             karooSystem.connect()
         }
     }
@@ -59,8 +58,6 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
         var lastDrawZoom = Double.NaN
 
         val job = CoroutineScope(Dispatchers.IO).launch {
-            tileRepo.loadCachedTiles()
-
             // Seed location flow with last-known position so tiles render before first GPS fix
             val locationFlow = karooSystem.consumerFlow<OnLocationChanged>()
             val centerLat = settings.getCenterLat()
@@ -103,13 +100,22 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
                     lastDrawZoom = zoom
 
                     val visibleTiles = SquadratGrid.visibleTiles(lat, lon, zoom)
-                    Log.d(TAG, "Redraw: ${visibleTiles.size} visible tiles, ${tileRepo.collectedCount} collected")
+                    if (visibleTiles.isEmpty()) return@collect
+
+                    // Query collected tiles within the visible bounding box
+                    val xMin = visibleTiles.minOf { it.x }
+                    val xMax = visibleTiles.maxOf { it.x }
+                    val yMin = visibleTiles.minOf { it.y }
+                    val yMax = visibleTiles.maxOf { it.y }
+                    val collectedKeys = tileRepo.collectedInBounds(xMin, xMax, yMin, yMax)
+                    Log.d(TAG, "Redraw: ${visibleTiles.size} visible tiles, ${collectedKeys.size} collected in bounds")
 
                     // Collect uncollected tile keys within visible area
                     val uncollectedKeys = mutableSetOf<Long>()
                     for (tile in visibleTiles) {
-                        if (!tileRepo.isCollected(tile)) {
-                            uncollectedKeys.add(tile.toKey())
+                        val key = tile.toKey()
+                        if (!collectedKeys.contains(key)) {
+                            uncollectedKeys.add(key)
                         }
                     }
 
