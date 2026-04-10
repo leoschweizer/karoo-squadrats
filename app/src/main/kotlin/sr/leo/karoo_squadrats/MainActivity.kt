@@ -72,8 +72,8 @@ class MainActivity : AppCompatActivity() {
             }
             editSyncRadius.setText(settings.getSyncRadiusKm().toString())
 
-            tileRepo.loadCachedTiles()
-            if (tileRepo.collectedCount > 0) {
+            val count = tileRepo.collectedCount()
+            if (count > 0) {
                 val lastSync = db.collectedSquadratDao().maxSyncedAt()
                 val lastSyncText = if (lastSync != null) {
                     java.text.DateFormat.getDateTimeInstance(
@@ -83,7 +83,7 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     "unknown"
                 }
-                txtSyncStatus.text = getString(R.string.cached_collected_tiles, tileRepo.collectedCount, lastSyncText)
+                txtSyncStatus.text = getString(R.string.cached_collected_tiles, count, lastSyncText)
             }
         }
 

@@ -14,17 +14,11 @@ interface CollectedSquadratDao {
     @Query("SELECT COUNT(*) FROM collected_squadrats")
     suspend fun count(): Int
 
-    @Query("SELECT * FROM collected_squadrats")
-    suspend fun getAll(): List<CollectedSquadrat>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(tiles: List<CollectedSquadrat>)
 
     @Query("DELETE FROM collected_squadrats WHERE x BETWEEN :xMin AND :xMax AND y BETWEEN :yMin AND :yMax")
     suspend fun deleteInBounds(xMin: Int, xMax: Int, yMin: Int, yMax: Int)
-
-    @Query("DELETE FROM collected_squadrats")
-    suspend fun deleteAll()
 
     @Query("SELECT MAX(syncedAt) FROM collected_squadrats")
     suspend fun maxSyncedAt(): Long?
