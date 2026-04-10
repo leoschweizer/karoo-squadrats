@@ -13,6 +13,7 @@ import io.hammerhead.karooext.models.ShowPolyline
 import sr.leo.karoo_squadrats.data.SquadratsPreferences
 import sr.leo.karoo_squadrats.data.TileRepository
 import sr.leo.karoo_squadrats.grid.SquadratGrid
+import sr.leo.karoo_squadrats.map.ContourExtractor
 import sr.leo.karoo_squadrats.map.PolylineEncoder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -99,27 +100,61 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
 
                     val visibleTiles = SquadratGrid.visibleTiles(lat, lon, zoom)
                     Log.d(TAG, "Redraw: ${visibleTiles.size} visible tiles, ${tileRepo.collectedCount} collected")
+
+                    // Collect uncollected tile keys within visible area
+                    val uncollectedKeys = mutableSetOf<Long>()
+                    for (tile in visibleTiles) {
+                        if (!tileRepo.isCollected(tile)) {
+                            uncollectedKeys.add(tile.toKey())
+                        }
+                    }
+
+                    // Extract contour polylines around uncollected regions
+                    val gridLines = ContourExtractor.extract(uncollectedKeys)
+                    val width = lineWidth(zoom)
                     val newPolylineIds = mutableSetOf<String>()
 
-                    // Draw outlines for uncollected tiles
-                    for (tile in visibleTiles) {
-                        if (tileRepo.isCollected(tile)) continue
+                    for ((index, contour) in gridLines.contours.withIndex()) {
+                        val encoded = PolylineEncoder.encode(contour.points)
 
-                        val id = "sq_${tile.x}_${tile.y}"
-                        newPolylineIds.add(id)
+                        // Shade line (wider, semi-transparent halo)
+                        val shadeId = "sq_s_$index"
+                        newPolylineIds.add(shadeId)
+                        emitter.onNext(
+                            ShowPolyline(
+                                id = shadeId,
+                                encodedPolyline = encoded,
+                                color = SHADE_COLOR,
+                                width = width + SHADE_EXTRA_WIDTH,
+                            ),
+                        )
 
-                        if (!drawnPolylines.contains(id)) {
-                            val bounds = SquadratGrid.tileBounds(tile)
-                            val encoded = PolylineEncoder.encodeSquare(bounds)
-                            emitter.onNext(
-                                ShowPolyline(
-                                    id = id,
-                                    encodedPolyline = encoded,
-                                    color = OVERLAY_COLOR,
-                                    width = OVERLAY_WIDTH,
-                                ),
-                            )
-                        }
+                        // Main contour line
+                        val contourId = "sq_c_$index"
+                        newPolylineIds.add(contourId)
+                        emitter.onNext(
+                            ShowPolyline(
+                                id = contourId,
+                                encodedPolyline = encoded,
+                                color = OVERLAY_COLOR,
+                                width = width,
+                            ),
+                        )
+                    }
+
+                    // Internal grid lines between adjacent uncollected tiles
+                    for ((index, edge) in gridLines.innerEdges.withIndex()) {
+                        val encoded = PolylineEncoder.encode(edge.points)
+                        val gridId = "sq_g_$index"
+                        newPolylineIds.add(gridId)
+                        emitter.onNext(
+                            ShowPolyline(
+                                id = gridId,
+                                encodedPolyline = encoded,
+                                color = GRID_COLOR,
+                                width = width,
+                            ),
+                        )
                     }
 
                     // Remove polylines that are no longer visible
@@ -130,7 +165,7 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
 
                     drawnPolylines.clear()
                     drawnPolylines.addAll(newPolylineIds)
-                    Log.d(TAG, "Drew ${newPolylineIds.size} uncollected, removed ${toRemove.size}")
+                    Log.d(TAG, "Drew ${gridLines.contours.size} contours, ${gridLines.innerEdges.size} grid lines (${newPolylineIds.size} polylines), removed ${toRemove.size}")
                 }
         }
 
@@ -145,10 +180,22 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
 
     companion object {
         private const val TAG = "SquadratMap"
-        // Semi-transparent purple (Squadrats brand) for uncollected tile borders
+        // Semi-transparent purple (Squadrats brand) for contour lines
         const val OVERLAY_COLOR = 0x80663399.toInt()
-        const val OVERLAY_WIDTH = 3
+        // Lighter grid lines for internal tile boundaries
+        const val GRID_COLOR = 0x40663399
+        // Subtle halo around contour lines to highlight boundaries (especially collected holes)
+        const val SHADE_COLOR = 0x33663399
+        const val SHADE_EXTRA_WIDTH = 6
         // ~0.5 tile widths at z=14 - triggers redraw when GPS moves ~25% of the 3x buffer
         const val REDRAW_THRESHOLD_DEG = 0.012
+
+        /** Adaptive line width: bolder at higher zoom levels where tiles are larger on screen. */
+        fun lineWidth(zoom: Double): Int = when {
+            zoom < 12 -> 2
+            zoom < 14 -> 3
+            zoom < 15 -> 4
+            else -> 5
+        }
     }
 }
