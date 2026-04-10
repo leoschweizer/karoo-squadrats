@@ -22,7 +22,7 @@ object SquadratGrid {
         companion object {
             fun fromKey(key: Long) = TileCoord(
                 x = (key shr 32).toInt(),   // upper 32 bits
-                y = key.toInt(),             // lower 32 bits
+                y = key.toInt(),            // lower 32 bits
             )
         }
     }
@@ -156,5 +156,15 @@ object SquadratGrid {
     fun tileCenterLonLat(tile: TileCoord): Pair<Double, Double> {
         val b = tileBounds(tile)
         return (b.lonMin + b.lonMax) / 2.0 to (b.latMin + b.latMax) / 2.0
+    }
+
+    /**
+     * Get the lon/lat of a tile grid corner point.
+     * Corner (x, y) is the top-left corner of tile (x, y).
+     */
+    fun tileCornerLonLat(x: Int, y: Int): Pair<Double, Double> {
+        val lon = x.toDouble() / TILES_PER_AXIS * 360.0 - 180.0
+        val lat = Math.toDegrees(atan(sinh(PI * (1 - 2.0 * y / TILES_PER_AXIS))))
+        return lon to lat
     }
 }
