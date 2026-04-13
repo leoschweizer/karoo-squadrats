@@ -2,6 +2,7 @@ package sr.leo.karoo_squadrats.map
 
 import sr.leo.karoo_squadrats.grid.SquadratGrid
 import sr.leo.karoo_squadrats.grid.SquadratGrid.TileCoord
+import sr.leo.karoo_squadrats.grid.ZoomLevel
 
 /**
  * Extracts contour polylines around groups of uncollected tiles.
@@ -26,12 +27,12 @@ object ContourExtractor {
     /**
      * Extract boundary contours and internal grid lines from a set of uncollected tile keys.
      */
-    fun extract(uncollectedTiles: Set<Long>): GridLines {
+    fun extract(uncollectedTiles: Set<Long>, zoom: ZoomLevel = ZoomLevel.SQUADRAT): GridLines {
         if (uncollectedTiles.isEmpty()) return GridLines(emptyList(), emptyList())
 
         val boundaryEdges = extractBoundaryEdges(uncollectedTiles)
-        val contours = if (boundaryEdges.isNotEmpty()) chainEdges(boundaryEdges) else emptyList()
-        val innerEdges = extractInnerEdges(uncollectedTiles)
+        val contours = if (boundaryEdges.isNotEmpty()) chainEdges(boundaryEdges, zoom) else emptyList()
+        val innerEdges = extractInnerEdges(uncollectedTiles, zoom)
 
         return GridLines(contours, innerEdges)
     }
@@ -73,6 +74,7 @@ object ContourExtractor {
      */
     internal fun extractInnerEdges(
         uncollectedTiles: Set<Long>,
+        zoom: ZoomLevel = ZoomLevel.SQUADRAT,
     ): List<Contour> {
         val edges = mutableListOf<Contour>()
 
@@ -83,14 +85,14 @@ object ContourExtractor {
 
             // Shared horizontal edge with tile below (only emit from upper tile)
             if (uncollectedTiles.contains(TileCoord(x, y + 1).toKey())) {
-                val (lon1, lat1) = SquadratGrid.tileCornerLonLat(x, y + 1)
-                val (lon2, lat2) = SquadratGrid.tileCornerLonLat(x + 1, y + 1)
+                val (lon1, lat1) = SquadratGrid.tileCornerLonLat(x, y + 1, zoom)
+                val (lon2, lat2) = SquadratGrid.tileCornerLonLat(x + 1, y + 1, zoom)
                 edges.add(Contour(listOf(lat1 to lon1, lat2 to lon2)))
             }
             // Shared vertical edge with tile to the right (only emit from left tile)
             if (uncollectedTiles.contains(TileCoord(x + 1, y).toKey())) {
-                val (lon1, lat1) = SquadratGrid.tileCornerLonLat(x + 1, y)
-                val (lon2, lat2) = SquadratGrid.tileCornerLonLat(x + 1, y + 1)
+                val (lon1, lat1) = SquadratGrid.tileCornerLonLat(x + 1, y, zoom)
+                val (lon2, lat2) = SquadratGrid.tileCornerLonLat(x + 1, y + 1, zoom)
                 edges.add(Contour(listOf(lat1 to lon1, lat2 to lon2)))
             }
         }
@@ -98,7 +100,7 @@ object ContourExtractor {
         return edges
     }
 
-    internal fun chainEdges(edges: List<Pair<GridPoint, GridPoint>>): List<Contour> {
+    internal fun chainEdges(edges: List<Pair<GridPoint, GridPoint>>, zoom: ZoomLevel = ZoomLevel.SQUADRAT): List<Contour> {
         // Build adjacency graph
         val adjacency = mutableMapOf<GridPoint, MutableList<GridPoint>>()
 
@@ -133,7 +135,7 @@ object ContourExtractor {
 
             // Convert grid points to lat/lon (PolylineEncoder expects lat, lon)
             val points = chain.map { gp ->
-                val (lon, lat) = SquadratGrid.tileCornerLonLat(gp.x, gp.y)
+                val (lon, lat) = SquadratGrid.tileCornerLonLat(gp.x, gp.y, zoom)
                 lat to lon
             }
 
