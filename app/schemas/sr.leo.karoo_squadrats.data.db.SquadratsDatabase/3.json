@@ -1,0 +1,97 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "c5fd2e07593ced893836559cde389ab1",
+    "entities": [
+      {
+        "tableName": "collected_squadrats",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`x` INTEGER NOT NULL, `y` INTEGER NOT NULL, `syncedAt` INTEGER NOT NULL, PRIMARY KEY(`x`, `y`))",
+        "fields": [
+          {
+            "fieldPath": "x",
+            "columnName": "x",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "y",
+            "columnName": "y",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncedAt",
+            "columnName": "syncedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "x",
+            "y"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_collected_squadrats_syncedAt",
+            "unique": false,
+            "columnNames": [
+              "syncedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_collected_squadrats_syncedAt` ON `${TABLE_NAME}` (`syncedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "collected_squadratinhos",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`x` INTEGER NOT NULL, `y` INTEGER NOT NULL, `syncedAt` INTEGER NOT NULL, PRIMARY KEY(`x`, `y`))",
+        "fields": [
+          {
+            "fieldPath": "x",
+            "columnName": "x",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "y",
+            "columnName": "y",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncedAt",
+            "columnName": "syncedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "x",
+            "y"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_collected_squadratinhos_syncedAt",
+            "unique": false,
+            "columnNames": [
+              "syncedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_collected_squadratinhos_syncedAt` ON `${TABLE_NAME}` (`syncedAt`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c5fd2e07593ced893836559cde389ab1')"
+    ]
+  }
+}

@@ -11,6 +11,8 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.tabs.TabLayout
 import io.hammerhead.karooext.KarooSystemService
 import io.hammerhead.karooext.models.OnLocationChanged
 import kotlinx.coroutines.CoroutineScope
@@ -18,13 +20,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import sr.leo.karoo_squadrats.data.CoordinateFormat
-import sr.leo.karoo_squadrats.data.SquadratsSettings
+import sr.leo.karoo_squadrats.data.Settings
 import sr.leo.karoo_squadrats.data.TileRepository
 import sr.leo.karoo_squadrats.data.db.SquadratsDatabase
 
 @SuppressLint("DefaultLocale", "SetTextI18n")
 class MainActivity : AppCompatActivity() {
-    private lateinit var settings: SquadratsSettings
+    private lateinit var settings: Settings
     private lateinit var tileRepo: TileRepository
     private val karooSystem by lazy { KarooSystemService(this) }
     private var locationConsumerId: String? = null
@@ -39,15 +41,33 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnUseLocation: Button
     private lateinit var progressSync: ProgressBar
     private lateinit var txtSyncStatus: TextView
+    private lateinit var tabData: View
+    private lateinit var tabSettings: View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        settings = SquadratsSettings(this)
+        settings = Settings(this)
         val db = SquadratsDatabase.getInstance(this)
-        tileRepo = TileRepository(db.collectedSquadratDao())
+        tileRepo = TileRepository(db.collectedSquadratDao(), db.collectedSquadratinhoDao())
 
+        // Tabs
+        val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
+        tabData = findViewById(R.id.tabData)
+        tabSettings = findViewById(R.id.tabSettings)
+        tabLayout.addTab(tabLayout.newTab().setText(R.string.tab_data))
+        tabLayout.addTab(tabLayout.newTab().setText(R.string.tab_settings))
+        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                tabData.visibility = if (tab.position == 0) View.VISIBLE else View.GONE
+                tabSettings.visibility = if (tab.position == 1) View.VISIBLE else View.GONE
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) {}
+        })
+
+        // Data tab
         editToken = findViewById(R.id.editToken)
         editTimestamp = findViewById(R.id.editTimestamp)
         editCenterLat = findViewById(R.id.editCenterLat)
@@ -58,7 +78,10 @@ class MainActivity : AppCompatActivity() {
         progressSync = findViewById(R.id.progressSync)
         txtSyncStatus = findViewById(R.id.txtSyncStatus)
 
-        // Load saved values and cached tiles asynchronously
+        // Settings tab
+        val switchSquadratinhos = findViewById<SwitchMaterial>(R.id.switchSquadratinhos)
+
+        // Load saved values
         CoroutineScope(Dispatchers.Main).launch {
             editToken.setText(settings.getUserToken())
             editTimestamp.setText(settings.getTileTimestamp())
@@ -71,8 +94,9 @@ class MainActivity : AppCompatActivity() {
                 editCenterLon.setText(CoordinateFormat.formatCoordinate(lon))
             }
             editSyncRadius.setText(settings.getSyncRadiusKm().toString())
+            switchSquadratinhos.isChecked = settings.getSquadratinhosEnabled()
 
-            val count = tileRepo.collectedCount()
+            val count = tileRepo.squadratCount()
             if (count > 0) {
                 val lastSync = db.collectedSquadratDao().maxSyncedAt()
                 val lastSyncText = if (lastSync != null) {
@@ -84,6 +108,12 @@ class MainActivity : AppCompatActivity() {
                     "unknown"
                 }
                 txtSyncStatus.text = getString(R.string.cached_collected_tiles, count, lastSyncText)
+            }
+        }
+
+        switchSquadratinhos.setOnCheckedChangeListener { _, isChecked ->
+            CoroutineScope(Dispatchers.IO).launch {
+                settings.setSquadratinhosEnabled(isChecked)
             }
         }
 
@@ -194,12 +224,14 @@ class MainActivity : AppCompatActivity() {
             settings.setCenterLon(lon)
             settings.setSyncRadiusKm(radiusKm)
 
+            val syncSquadratinhos = settings.getSquadratinhosEnabled()
             tileRepo.sync(
                 karooSystem,
                 settings.getTileUrlTemplate(),
                 lat,
                 lon,
                 radiusKm.toDouble(),
+                syncSquadratinhos,
                 object : TileRepository.SyncCallback {
                     override fun onProgress(fetched: Int, total: Int) {
                         runOnUiThread {

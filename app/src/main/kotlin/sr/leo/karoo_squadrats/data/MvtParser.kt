@@ -15,7 +15,7 @@ import kotlin.math.sinh
 /**
  * Minimal MVT (Mapbox Vector Tile) parser.
  *
- * Parses gzipped MVT tiles and extracts polygon geometries from a named layer.
+ * Parses MVT tiles and extracts polygon geometries from a named layer.
  * Coordinates are returned as lon/lat pairs derived from the tile position.
  *
  * In MVT, polygons are encoded as a sequence of rings (closed coordinate loops):
@@ -56,7 +56,7 @@ object MvtParser {
     fun extractPolygons(
         rawData: ByteArray,
         layerName: String,
-        tileZ: Int,
+        tileZoom: Int,
         tileX: Int,
         tileY: Int,
     ): List<Ring> {
@@ -66,7 +66,7 @@ object MvtParser {
         for (layer in tile.layers) {
             if (layer.name != layerName) continue
             for (feature in layer.features) {
-                rings.addAll(decodePolygonGeometry(feature.geometry, tileZ, tileX, tileY, layer.extent))
+                rings.addAll(decodePolygonGeometry(feature.geometry, tileZoom, tileX, tileY, layer.extent))
             }
         }
         return rings
