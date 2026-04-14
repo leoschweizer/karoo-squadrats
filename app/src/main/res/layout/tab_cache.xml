@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/tabData"
+    android:id="@+id/tabCache"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:visibility="gone">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,41 +16,79 @@
         android:paddingTop="8dp">
 
         <TextView
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/section_credentials"
+            android:text="@string/section_info"
             android:textSize="14sp"
             android:textStyle="bold"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginBottom="4dp" />
 
-        <com.google.android.material.textfield.TextInputLayout
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            app:passwordToggleEnabled="true">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/editToken"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/token_hint"
-                android:inputType="textPassword"
-                android:textSize="12sp" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:orientation="horizontal"
             android:layout_marginBottom="12dp">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/editTimestamp"
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:hint="@string/timestamp_hint"
-                android:inputType="number"
-                android:textSize="12sp" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_squadrats"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/txtSquadratCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/info_no_data"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/txtSquadratSync"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textSize="11sp"
+                    android:textColor="?android:attr/textColorSecondary" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_squadratinhos"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/txtSquadratinhoCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/info_no_data"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/txtSquadratinhoSync"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textSize="11sp"
+                    android:textColor="?android:attr/textColorSecondary" />
+            </LinearLayout>
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
@@ -77,7 +116,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="@string/center_lat_hint"
-                    android:inputType="numberDecimal|numberSigned" />
+                    android:inputType="numberDecimal|numberSigned"
+                    android:imeOptions="actionNext"
+                    android:nextFocusForward="@+id/editCenterLon" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
@@ -91,7 +132,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="@string/center_lon_hint"
-                    android:inputType="numberDecimal|numberSigned" />
+                    android:inputType="numberDecimal|numberSigned"
+                    android:imeOptions="actionNext"
+                    android:nextFocusForward="@+id/editSyncRadius" />
             </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
 
@@ -114,6 +157,7 @@
                 android:layout_height="wrap_content"
                 android:hint="@string/sync_radius_label"
                 android:inputType="number"
+                android:imeOptions="actionDone"
                 android:text="@string/default_sync_radius" />
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -124,6 +168,13 @@
             android:text="@string/btn_sync"
             android:layout_marginBottom="8dp" />
 
+        <TextView
+            android:id="@+id/txtSyncStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:textSize="14sp" />
+
         <ProgressBar
             android:id="@+id/progressSync"
             style="@style/Widget.AppCompat.ProgressBar.Horizontal"
@@ -131,14 +182,6 @@
             android:layout_height="wrap_content"
             android:visibility="gone"
             android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:id="@+id/txtSyncStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/sync_status_idle"
-            android:textSize="14sp"
-            android:layout_marginBottom="16dp" />
 
     </LinearLayout>
 </ScrollView>

@@ -11,6 +11,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.tabs.TabLayout
 import io.hammerhead.karooext.KarooSystemService
@@ -28,6 +29,7 @@ import sr.leo.karoo_squadrats.data.db.SquadratsDatabase
 class MainActivity : AppCompatActivity() {
     private lateinit var settings: Settings
     private lateinit var tileRepo: TileRepository
+    private lateinit var db: SquadratsDatabase
     private val karooSystem by lazy { KarooSystemService(this) }
     private var locationConsumerId: String? = null
     private var syncJob: Job? = null
@@ -41,35 +43,42 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnUseLocation: Button
     private lateinit var progressSync: ProgressBar
     private lateinit var txtSyncStatus: TextView
-    private lateinit var tabData: View
+    private lateinit var txtSquadratCount: TextView
+    private lateinit var txtSquadratSync: TextView
+    private lateinit var txtSquadratinhoCount: TextView
+    private lateinit var txtSquadratinhoSync: TextView
     private lateinit var tabSettings: View
+    private lateinit var tabCache: View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         settings = Settings(this)
-        val db = SquadratsDatabase.getInstance(this)
+        db = SquadratsDatabase.getInstance(this)
         tileRepo = TileRepository(db.collectedSquadratDao(), db.collectedSquadratinhoDao())
 
-        // Tabs
+        // Tabs: Settings (0), Cache (1)
         val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
-        tabData = findViewById(R.id.tabData)
         tabSettings = findViewById(R.id.tabSettings)
-        tabLayout.addTab(tabLayout.newTab().setText(R.string.tab_data))
+        tabCache = findViewById(R.id.tabCache)
         tabLayout.addTab(tabLayout.newTab().setText(R.string.tab_settings))
+        tabLayout.addTab(tabLayout.newTab().setText(R.string.tab_cache))
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
-                tabData.visibility = if (tab.position == 0) View.VISIBLE else View.GONE
-                tabSettings.visibility = if (tab.position == 1) View.VISIBLE else View.GONE
+                tabSettings.visibility = if (tab.position == 0) View.VISIBLE else View.GONE
+                tabCache.visibility = if (tab.position == 1) View.VISIBLE else View.GONE
             }
             override fun onTabUnselected(tab: TabLayout.Tab) {}
             override fun onTabReselected(tab: TabLayout.Tab) {}
         })
 
-        // Data tab
+        // Settings tab: credentials + display
         editToken = findViewById(R.id.editToken)
         editTimestamp = findViewById(R.id.editTimestamp)
+        val switchSquadratinhos = findViewById<SwitchMaterial>(R.id.switchSquadratinhos)
+
+        // Cache tab
         editCenterLat = findViewById(R.id.editCenterLat)
         editCenterLon = findViewById(R.id.editCenterLon)
         editSyncRadius = findViewById(R.id.editSyncRadius)
@@ -77,14 +86,34 @@ class MainActivity : AppCompatActivity() {
         btnUseLocation = findViewById(R.id.btnUseLocation)
         progressSync = findViewById(R.id.progressSync)
         txtSyncStatus = findViewById(R.id.txtSyncStatus)
+        txtSquadratCount = findViewById(R.id.txtSquadratCount)
+        txtSquadratSync = findViewById(R.id.txtSquadratSync)
+        txtSquadratinhoCount = findViewById(R.id.txtSquadratinhoCount)
+        txtSquadratinhoSync = findViewById(R.id.txtSquadratinhoSync)
 
-        // Settings tab
-        val switchSquadratinhos = findViewById<SwitchMaterial>(R.id.switchSquadratinhos)
-
-        // Load saved values
+        // Load saved settings
         CoroutineScope(Dispatchers.Main).launch {
             editToken.setText(settings.getUserToken())
             editTimestamp.setText(settings.getTileTimestamp())
+            switchSquadratinhos.isChecked = settings.getSquadratinhosEnabled()
+
+            // Auto-save credentials on edit (attached after loading to avoid triggering on setText)
+            editToken.doAfterTextChanged { text ->
+                CoroutineScope(Dispatchers.IO).launch { settings.setUserToken(text.toString().trim()) }
+            }
+            editTimestamp.doAfterTextChanged { text ->
+                CoroutineScope(Dispatchers.IO).launch { settings.setTileTimestamp(text.toString().trim()) }
+            }
+        }
+
+        switchSquadratinhos.setOnCheckedChangeListener { _, isChecked ->
+            CoroutineScope(Dispatchers.IO).launch {
+                settings.setSquadratinhosEnabled(isChecked)
+            }
+        }
+
+        // Load saved cache state
+        CoroutineScope(Dispatchers.Main).launch {
             val lat = settings.getCenterLat()
             val lon = settings.getCenterLon()
             if (lat != 0.0) {
@@ -94,27 +123,7 @@ class MainActivity : AppCompatActivity() {
                 editCenterLon.setText(CoordinateFormat.formatCoordinate(lon))
             }
             editSyncRadius.setText(settings.getSyncRadiusKm().toString())
-            switchSquadratinhos.isChecked = settings.getSquadratinhosEnabled()
-
-            val count = tileRepo.squadratCount()
-            if (count > 0) {
-                val lastSync = db.collectedSquadratDao().maxSyncedAt()
-                val lastSyncText = if (lastSync != null) {
-                    java.text.DateFormat.getDateTimeInstance(
-                        java.text.DateFormat.MEDIUM,
-                        java.text.DateFormat.SHORT,
-                    ).format(java.util.Date(lastSync))
-                } else {
-                    "unknown"
-                }
-                txtSyncStatus.text = getString(R.string.cached_collected_tiles, count, lastSyncText)
-            }
-        }
-
-        switchSquadratinhos.setOnCheckedChangeListener { _, isChecked ->
-            CoroutineScope(Dispatchers.IO).launch {
-                settings.setSquadratinhosEnabled(isChecked)
-            }
+            updateInfoSection(db)
         }
 
         btnUseLocation.setOnClickListener { fetchCurrentLocation() }
@@ -213,13 +222,13 @@ class MainActivity : AppCompatActivity() {
 
         // Start sync on background thread
         btnSync.isEnabled = false
+        txtSyncStatus.visibility = View.VISIBLE
+        txtSyncStatus.text = ""
         progressSync.visibility = View.VISIBLE
         progressSync.progress = 0
+        progressSync.post { (progressSync.parent.parent as? android.widget.ScrollView)?.fullScroll(View.FOCUS_DOWN) }
 
         syncJob = CoroutineScope(Dispatchers.IO).launch {
-            // Save settings
-            settings.setUserToken(token)
-            settings.setTileTimestamp(timestamp)
             settings.setCenterLat(lat)
             settings.setCenterLon(lon)
             settings.setSyncRadiusKm(radiusKm)
@@ -244,20 +253,38 @@ class MainActivity : AppCompatActivity() {
                     override fun onComplete(collected: Int, total: Int) {
                         runOnUiThread {
                             progressSync.visibility = View.GONE
+                            txtSyncStatus.visibility = View.GONE
                             btnSync.isEnabled = true
-                            txtSyncStatus.text = getString(R.string.sync_status_done, collected, total)
                         }
+                        CoroutineScope(Dispatchers.Main).launch { updateInfoSection(db) }
                     }
 
                     override fun onError(message: String) {
                         runOnUiThread {
                             progressSync.visibility = View.GONE
-                            btnSync.isEnabled = true
                             txtSyncStatus.text = getString(R.string.sync_status_error, message)
+                            btnSync.isEnabled = true
                         }
                     }
                 },
             )
         }
+    }
+
+    private suspend fun updateInfoSection(db: SquadratsDatabase) {
+        val dateFmt = java.text.DateFormat.getDateTimeInstance(
+            java.text.DateFormat.MEDIUM,
+            java.text.DateFormat.SHORT,
+        )
+
+        val sqCount = db.collectedSquadratDao().count()
+        val sqSync = db.collectedSquadratDao().maxSyncedAt()
+        txtSquadratCount.text = if (sqCount > 0) getString(R.string.info_tile_count, sqCount) else getString(R.string.info_no_data)
+        txtSquadratSync.text = if (sqSync != null) getString(R.string.info_last_sync, dateFmt.format(java.util.Date(sqSync))) else ""
+
+        val shCount = db.collectedSquadratinhoDao().count()
+        val shSync = db.collectedSquadratinhoDao().maxSyncedAt()
+        txtSquadratinhoCount.text = if (shCount > 0) getString(R.string.info_tile_count, shCount) else getString(R.string.info_no_data)
+        txtSquadratinhoSync.text = if (shSync != null) getString(R.string.info_last_sync, dateFmt.format(java.util.Date(shSync))) else ""
     }
 }

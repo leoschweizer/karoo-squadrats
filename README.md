@@ -36,10 +36,10 @@ Squadrats doesn't have a public API, but serves your data as vector map tiles. Y
 ### 3. Configure the extension on your Karoo
 
 1. Open the **Squadrats Overlay** app on your Karoo
-2. Enter your **Token** and **Timestamp**
-3. Set your **sync center** - either tap "Use Current Location" for GPS, or manually enter the latitude/longitude of the area you ride in
+2. Enter your **token** and **timestamp** on the Settings screen.
+3. Go to the Cache screen and set your **sync center** - either tap "Use Current Location" for GPS, or manually enter the latitude/longitude of the area you ride in
 4. Set the **sync radius** - this determines how large an area of tile data to download
-5. Tap **Sync Data** - the Karoo will download tile data using the Karoo's built-in HTTP mechanism (WiFi when available, or via Bluetooth through the companion app if supported).
+5. Tap **sync data** - the Karoo will download tile data using the Karoo's built-in HTTP mechanism (WiFi when available, or via Bluetooth through the companion app if supported).
 
 ### 4. Go for a ride
 

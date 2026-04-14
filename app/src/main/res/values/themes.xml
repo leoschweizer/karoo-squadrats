@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/squadrats_purple</item>
+        <item name="colorPrimaryDark">@color/squadrats_purple_dark</item>
+        <item name="colorAccent">@color/squadrats_purple_light</item>
+        <item name="colorSecondary">@color/squadrats_purple</item>
+    </style>
+</resources>
