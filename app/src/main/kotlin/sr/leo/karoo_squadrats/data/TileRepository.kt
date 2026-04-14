@@ -58,6 +58,7 @@ class TileRepository(
 
     interface SyncCallback {
         fun onProgress(fetched: Int, total: Int)
+        fun onProcessingProgress(processed: Int, total: Int)
         fun onComplete(collected: Int, total: Int)
         fun onError(error: SyncError)
     }
@@ -224,11 +225,21 @@ class TileRepository(
         val displayTiles = SquadratGrid.tilesInRadius(centerLat, centerLon, radiusKm)
         val now = System.currentTimeMillis()
 
+        val shTiles = if (syncSquadratinhos && squadratinhoRings.isNotEmpty()) {
+            SquadratGrid.tilesInRadius(centerLat, centerLon, radiusKm, ZoomLevel.SQUADRATINHO.z)
+        } else emptyList()
+        val totalProcessing = displayTiles.size + shTiles.size
+        var processed = 0
+
         val collected = mutableListOf<CollectedSquadrat>()
         for (tile in displayTiles) {
             val (lon, lat) = SquadratGrid.tileCenterLonLat(tile)
             if (isCollectedTile(lon, lat, squadratRingsPrepped)) {
                 collected.add(CollectedSquadrat(tile.x, tile.y, now))
+            }
+            processed++
+            if (processed % 100 == 0 || processed == totalProcessing) {
+                callback.onProcessingProgress(processed, totalProcessing)
             }
         }
 
@@ -243,14 +254,8 @@ class TileRepository(
         Log.d(TAG, "Sync: ${collected.size} collected out of ${displayTiles.size} z14 tiles, from ${squadratRings.size} polygon rings")
 
         // -- Squadratinhos (z=17) --
-        var shCollectedCount: Int
-        var shTotalCount: Int
-        if (syncSquadratinhos && squadratinhoRings.isNotEmpty()) {
+        if (shTiles.isNotEmpty()) {
             val shRingsPrepped = prepareRings(squadratinhoRings)
-            val shTiles = SquadratGrid.tilesInRadius(
-                centerLat, centerLon, radiusKm, ZoomLevel.SQUADRATINHO.z
-            )
-            shTotalCount = shTiles.size
 
             val shCollected = mutableListOf<CollectedSquadratinho>()
             for (tile in shTiles) {
@@ -258,8 +263,12 @@ class TileRepository(
                 if (isCollectedTile(lon, lat, shRingsPrepped)) {
                     shCollected.add(CollectedSquadratinho(tile.x, tile.y, now))
                 }
+                processed++
+                if (processed % 100 == 0 || processed == totalProcessing) {
+                    callback.onProcessingProgress(processed, totalProcessing)
+                }
             }
-            shCollectedCount = shCollected.size
+            shCollected.size
 
             val shXMin = shTiles.minOf { it.x }
             val shXMax = shTiles.maxOf { it.x }
@@ -268,10 +277,9 @@ class TileRepository(
             squadratinhoDao.deleteInBounds(shXMin, shXMax, shYMin, shYMax)
             squadratinhoDao.insertAll(shCollected)
 
-            Log.d(TAG, "Sync: $shCollectedCount collected out of $shTotalCount z17 tiles, from ${squadratinhoRings.size} polygon rings")
+            Log.d(TAG, "Sync: ${shCollected.size} collected out of ${shTiles.size} z17 tiles, from ${squadratinhoRings.size} polygon rings")
         }
 
-        callback.onProgress(totalFetch + 1, totalFetch + 1)
         callback.onComplete(collected.size, displayTiles.size)
     }
 
