@@ -250,6 +250,14 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
 
+                    override fun onProcessingProgress(processed: Int, total: Int) {
+                        runOnUiThread {
+                            progressSync.max = total
+                            progressSync.progress = processed
+                            txtSyncStatus.text = getString(R.string.sync_status_processing, processed, total)
+                        }
+                    }
+
                     override fun onComplete(collected: Int, total: Int) {
                         runOnUiThread {
                             progressSync.visibility = View.GONE

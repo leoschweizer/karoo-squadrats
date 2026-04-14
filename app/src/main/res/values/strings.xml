@@ -5,7 +5,8 @@
     <string name="timestamp_hint">Timestamp</string>
     <string name="sync_radius_label">Sync radius (km)</string>
     <string name="btn_sync">Sync Data</string>
-    <string name="sync_status_running" tools:ignore="PluralsCandidate">Syncing… %1$d / %2$d tiles</string>
+    <string name="sync_status_running" tools:ignore="PluralsCandidate">Downloading… %1$d / %2$d tiles</string>
+    <string name="sync_status_processing" tools:ignore="PluralsCandidate">Processing… %1$d / %2$d tiles</string>
     <string name="sync_error_missing_credentials">Enter your user token and timestamp in Settings first</string>
     <string name="sync_error_no_tiles">No tiles in the specified area</string>
     <string name="sync_error_network">Network error: %1$s</string>
