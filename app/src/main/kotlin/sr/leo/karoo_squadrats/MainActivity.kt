@@ -259,10 +259,19 @@ class MainActivity : AppCompatActivity() {
                         CoroutineScope(Dispatchers.Main).launch { updateInfoSection(db) }
                     }
 
-                    override fun onError(message: String) {
+                    override fun onError(error: TileRepository.SyncError) {
+                        val msg = when (error) {
+                            is TileRepository.SyncError.MissingCredentials -> getString(R.string.sync_error_missing_credentials)
+                            is TileRepository.SyncError.NoTilesInArea -> getString(R.string.sync_error_no_tiles)
+                            is TileRepository.SyncError.NetworkError -> getString(R.string.sync_error_network, error.detail ?: "")
+                            is TileRepository.SyncError.AuthError -> getString(R.string.sync_error_auth, error.statusCode)
+                            is TileRepository.SyncError.ServerError -> getString(R.string.sync_error_server, error.statusCode)
+                            is TileRepository.SyncError.HttpError -> getString(R.string.sync_error_http, error.statusCode)
+                            is TileRepository.SyncError.UnexpectedError -> getString(R.string.sync_error_unexpected, error.detail)
+                        }
                         runOnUiThread {
                             progressSync.visibility = View.GONE
-                            txtSyncStatus.text = getString(R.string.sync_status_error, message)
+                            txtSyncStatus.text = msg
                             btnSync.isEnabled = true
                         }
                     }
