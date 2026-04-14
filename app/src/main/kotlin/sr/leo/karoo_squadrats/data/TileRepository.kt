@@ -46,10 +46,20 @@ class TileRepository(
 
     suspend fun squadratCount(): Int = squadratDao.count()
 
+    sealed class SyncError {
+        data object MissingCredentials : SyncError()
+        data object NoTilesInArea : SyncError()
+        data class NetworkError(val detail: String?) : SyncError()
+        data class AuthError(val statusCode: Int) : SyncError()
+        data class ServerError(val statusCode: Int) : SyncError()
+        data class HttpError(val statusCode: Int) : SyncError()
+        data class UnexpectedError(val detail: String) : SyncError()
+    }
+
     interface SyncCallback {
         fun onProgress(fetched: Int, total: Int)
         fun onComplete(collected: Int, total: Int)
-        fun onError(message: String)
+        fun onError(error: SyncError)
     }
 
     /**
@@ -70,7 +80,7 @@ class TileRepository(
         callback: SyncCallback,
     ) {
         if (tileUrlTemplate.isEmpty()) {
-            callback.onError("Enter your user token and timestamp first")
+            callback.onError(SyncError.MissingCredentials)
             return
         }
 
@@ -79,7 +89,7 @@ class TileRepository(
         val fetchZoom = gridLevel.fetchZoom
         val fetchTiles = SquadratGrid.tilesInRadius(centerLat, centerLon, radiusKm, fetchZoom)
         if (fetchTiles.isEmpty()) {
-            callback.onError("No tiles in the specified area")
+            callback.onError(SyncError.NoTilesInArea)
             return
         }
 
@@ -89,8 +99,6 @@ class TileRepository(
         val squadratRings = mutableListOf<MvtParser.Ring>()
         val squadratinhoRings = mutableListOf<MvtParser.Ring>()
         var fetched = 0
-        var errors = 0
-        var httpErrors = 0
         val totalFetch = fetchTiles.size
 
         for (tile in fetchTiles) {
@@ -111,8 +119,9 @@ class TileRepository(
                     .first()
 
                 if (response.error != null) {
-                    errors++
                     Log.w(TAG, "Tile ${tile.x}/${tile.y}: error=${response.error}")
+                    callback.onError(SyncError.NetworkError(response.error))
+                    return
                 } else if (response.statusCode in 200..299) {
                     val body = response.body?.let { decompressIfGzipped(it) }
                     Log.d(TAG, "Tile ${tile.x}/${tile.y}: HTTP ${response.statusCode}, body=${body?.size ?: 0} bytes")
@@ -132,12 +141,19 @@ class TileRepository(
                         }
                     }
                 } else {
-                    httpErrors++
                     Log.w(TAG, "Tile ${tile.x}/${tile.y}: HTTP ${response.statusCode}")
+                    val error = when (response.statusCode) {
+                        in 400..499 -> SyncError.AuthError(response.statusCode)
+                        in 500..599 -> SyncError.ServerError(response.statusCode)
+                        else -> SyncError.HttpError(response.statusCode)
+                    }
+                    callback.onError(error)
+                    return
                 }
             } catch (e: Exception) {
-                errors++
                 Log.w(TAG, "Tile ${tile.x}/${tile.y}: ${e.javaClass.simpleName}: ${e.message}")
+                callback.onError(SyncError.UnexpectedError(e.message ?: e.javaClass.simpleName))
+                return
             }
             fetched++
             callback.onProgress(fetched, totalFetch + 1) // +1 for the computation step
@@ -147,7 +163,7 @@ class TileRepository(
 
         if (allRings.isEmpty()) {
             // No collected area found - clear the synced region
-            Log.w(TAG, "No rings found. errors=$errors, httpErrors=$httpErrors, fetched=$fetched")
+            Log.w(TAG, "No rings found after fetching $fetched tiles")
             val displayTiles = SquadratGrid.tilesInRadius(centerLat, centerLon, radiusKm)
             if (displayTiles.isNotEmpty()) {
                 squadratDao.deleteInBounds(
@@ -166,13 +182,7 @@ class TileRepository(
                     )
                 }
             }
-            if (errors == totalFetch) {
-                callback.onError("All $errors tile requests failed. Check internet connection.")
-            } else if (errors + httpErrors > 0) {
-                callback.onError("No collected areas found ($errors network errors, $httpErrors HTTP errors out of $totalFetch tiles)")
-            } else {
-                callback.onComplete(0, 0)
-            }
+            callback.onComplete(0, 0)
             return
         }
 
