@@ -113,6 +113,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        val btnTestCredentials = findViewById<Button>(R.id.btnTestCredentials)
+        btnTestCredentials.setOnClickListener { testCredentials(btnTestCredentials) }
+
         // Load saved cache state
         CoroutineScope(Dispatchers.Main).launch {
             val lat = settings.getCenterLat()
@@ -320,5 +323,30 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton(R.string.clear_cache_cancel, null)
             .show()
+    }
+
+    private fun testCredentials(btn: Button) {
+        btn.isEnabled = false
+        btn.text = getString(R.string.test_credentials_testing)
+        CoroutineScope(Dispatchers.IO).launch {
+            val urlTemplate = settings.getTileUrlTemplate()
+            val error = tileRepo.testCredentials(karooSystem, urlTemplate)
+            runOnUiThread {
+                btn.isEnabled = true
+                btn.text = getString(R.string.btn_test_credentials)
+                val msg = if (error == null) {
+                    getString(R.string.test_credentials_success)
+                } else when (error) {
+                    is TileRepository.SyncError.MissingCredentials -> getString(R.string.sync_error_missing_credentials)
+                    is TileRepository.SyncError.AuthError -> getString(R.string.sync_error_auth, error.statusCode)
+                    is TileRepository.SyncError.ServerError -> getString(R.string.sync_error_server, error.statusCode)
+                    is TileRepository.SyncError.NetworkError -> getString(R.string.sync_error_network, error.detail ?: "")
+                    is TileRepository.SyncError.HttpError -> getString(R.string.sync_error_http, error.statusCode)
+                    is TileRepository.SyncError.UnexpectedError -> getString(R.string.sync_error_unexpected, error.detail)
+                    is TileRepository.SyncError.NoTilesInArea -> getString(R.string.sync_error_no_tiles)
+                }
+                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 }

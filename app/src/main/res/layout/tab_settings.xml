@@ -51,6 +51,14 @@
                 android:textSize="12sp" />
         </com.google.android.material.textfield.TextInputLayout>
 
+        <Button
+            android:id="@+id/btnTestCredentials"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/btn_test_credentials"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_marginBottom="16dp" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
