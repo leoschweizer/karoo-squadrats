@@ -4,6 +4,15 @@ A Hammerhead Karoo extension that displays uncollected Squadrats as colored grid
 
 This project is an independent, unofficial community project. It is not affiliated with, endorsed by, or associated with [Hammerhead](https://www.hammerhead.io/) or [Squadrats](https://squadrats.com/) in any way.
 
+<table>
+  <tr>
+    <td><img src="docs/screenshot-settings.png" alt="Settings screen" width="120" /></td>
+    <td><img src="docs/screenshot-cache.png" alt="Cache screen" width="120" /></td>
+    <td><img src="docs/screenshot-squadrats.png" alt="Squadrats overlay on map" width="120" /></td>
+    <td><img src="docs/screenshot-squadratinhos.png" alt="Squadratinhos overlay on map" width="120" /></td>
+  </tr>
+</table>
+
 ## Setup
 
 ### 1. Install the APK
