@@ -10,6 +10,7 @@ import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.switchmaterial.SwitchMaterial
@@ -128,6 +129,7 @@ class MainActivity : AppCompatActivity() {
 
         btnUseLocation.setOnClickListener { fetchCurrentLocation() }
         btnSync.setOnClickListener { startSync() }
+        findViewById<Button>(R.id.btnClearCache).setOnClickListener { confirmClearCache() }
     }
 
     override fun onStart() {
@@ -303,5 +305,20 @@ class MainActivity : AppCompatActivity() {
         val shSync = db.collectedSquadratinhoDao().maxSyncedAt()
         txtSquadratinhoCount.text = if (shCount > 0) getString(R.string.info_tile_count, shCount) else getString(R.string.info_no_data)
         txtSquadratinhoSync.text = if (shSync != null) getString(R.string.info_last_sync, dateFmt.format(java.util.Date(shSync))) else ""
+    }
+
+    private fun confirmClearCache() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.clear_cache_title)
+            .setMessage(R.string.clear_cache_message)
+            .setPositiveButton(R.string.clear_cache_confirm) { _, _ ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    db.collectedSquadratDao().deleteAll()
+                    db.collectedSquadratinhoDao().deleteAll()
+                    CoroutineScope(Dispatchers.Main).launch { updateInfoSection(db) }
+                }
+            }
+            .setNegativeButton(R.string.clear_cache_cancel, null)
+            .show()
     }
 }
