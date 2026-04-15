@@ -46,6 +46,67 @@ class TileRepository(
 
     suspend fun squadratCount(): Int = squadratDao.count()
 
+    private sealed class FetchResult {
+        data class Success(val body: ByteArray?) : FetchResult()
+        data class Error(val syncError: SyncError) : FetchResult()
+    }
+
+    private suspend fun fetchTile(
+        karooSystem: KarooSystemService,
+        url: String,
+    ): FetchResult {
+        return try {
+            val response = karooSystem.consumerFlow<OnHttpResponse>(
+                OnHttpResponse.MakeHttpRequest(
+                    method = "GET",
+                    url = url,
+                    headers = mapOf("Accept-Encoding" to "gzip"),
+                    waitForConnection = false,
+                ),
+            ).mapNotNull { it.state as? HttpResponseState.Complete }
+                .first()
+
+            if (response.error != null) {
+                Log.w(TAG, "Fetch $url: error=${response.error}")
+                FetchResult.Error(SyncError.NetworkError(response.error))
+            } else if (response.statusCode in 200..299) {
+                val body = response.body?.let { decompressIfGzipped(it) }
+                FetchResult.Success(body)
+            } else {
+                Log.w(TAG, "Fetch $url: HTTP ${response.statusCode}")
+                val error = when (response.statusCode) {
+                    in 400..499 -> SyncError.AuthError(response.statusCode)
+                    in 500..599 -> SyncError.ServerError(response.statusCode)
+                    else -> SyncError.HttpError(response.statusCode)
+                }
+                FetchResult.Error(error)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Fetch $url: ${e.javaClass.simpleName}: ${e.message}")
+            FetchResult.Error(SyncError.UnexpectedError(e.message ?: e.javaClass.simpleName))
+        }
+    }
+
+    /**
+     * Test credentials by fetching a single well-known tile.
+     * Returns null on success or a [SyncError] describing the failure.
+     */
+    suspend fun testCredentials(
+        karooSystem: KarooSystemService,
+        tileUrlTemplate: String,
+    ): SyncError? {
+        if (tileUrlTemplate.isEmpty()) return SyncError.MissingCredentials
+        // Use a well-known tile (z=10, x=0, y=0) — the content doesn't matter, just the HTTP status
+        val url = tileUrlTemplate
+            .replace("{z}", "10")
+            .replace("{x}", "0")
+            .replace("{y}", "0")
+        return when (val result = fetchTile(karooSystem, url)) {
+            is FetchResult.Success -> null
+            is FetchResult.Error -> result.syncError
+        }
+    }
+
     sealed class SyncError {
         data object MissingCredentials : SyncError()
         data object NoTilesInArea : SyncError()
@@ -103,29 +164,19 @@ class TileRepository(
         val totalFetch = fetchTiles.size
 
         for (tile in fetchTiles) {
-            try {
-                val url = tileUrlTemplate
-                    .replace("{z}", fetchZoom.toString())
-                    .replace("{x}", tile.x.toString())
-                    .replace("{y}", tile.y.toString())
+            val url = tileUrlTemplate
+                .replace("{z}", fetchZoom.toString())
+                .replace("{x}", tile.x.toString())
+                .replace("{y}", tile.y.toString())
 
-                val response = karooSystem.consumerFlow<OnHttpResponse>(
-                    OnHttpResponse.MakeHttpRequest(
-                        method = "GET",
-                        url = url,
-                        headers = mapOf("Accept-Encoding" to "gzip"),
-                        waitForConnection = false,
-                    ),
-                ).mapNotNull { it.state as? HttpResponseState.Complete }
-                    .first()
-
-                if (response.error != null) {
-                    Log.w(TAG, "Tile ${tile.x}/${tile.y}: error=${response.error}")
-                    callback.onError(SyncError.NetworkError(response.error))
+            when (val result = fetchTile(karooSystem, url)) {
+                is FetchResult.Error -> {
+                    callback.onError(result.syncError)
                     return
-                } else if (response.statusCode in 200..299) {
-                    val body = response.body?.let { decompressIfGzipped(it) }
-                    Log.d(TAG, "Tile ${tile.x}/${tile.y}: HTTP ${response.statusCode}, body=${body?.size ?: 0} bytes")
+                }
+                is FetchResult.Success -> {
+                    val body = result.body
+                    Log.d(TAG, "Tile ${tile.x}/${tile.y}: body=${body?.size ?: 0} bytes")
                     if (body != null && body.isNotEmpty()) {
                         val sRings = MvtParser.extractPolygons(
                             body, "squadrats", fetchZoom, tile.x, tile.y
@@ -141,20 +192,7 @@ class TileRepository(
                             squadratinhoRings.addAll(shRings)
                         }
                     }
-                } else {
-                    Log.w(TAG, "Tile ${tile.x}/${tile.y}: HTTP ${response.statusCode}")
-                    val error = when (response.statusCode) {
-                        in 400..499 -> SyncError.AuthError(response.statusCode)
-                        in 500..599 -> SyncError.ServerError(response.statusCode)
-                        else -> SyncError.HttpError(response.statusCode)
-                    }
-                    callback.onError(error)
-                    return
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Tile ${tile.x}/${tile.y}: ${e.javaClass.simpleName}: ${e.message}")
-                callback.onError(SyncError.UnexpectedError(e.message ?: e.javaClass.simpleName))
-                return
             }
             fetched++
             callback.onProgress(fetched, totalFetch + 1) // +1 for the computation step
