@@ -32,4 +32,9 @@
     <string name="section_display">Display</string>
     <string name="setting_squadratinhos">Show Squadratinhos</string>
     <string name="setting_squadratinhos_desc">Visible when zoomed in. Sync data again after enabling.</string>
+    <string name="btn_clear_cache">Clear Cache</string>
+    <string name="clear_cache_title">Clear Cache?</string>
+    <string name="clear_cache_message">This will delete all synced tile data. You will need to sync again.</string>
+    <string name="clear_cache_confirm">Clear</string>
+    <string name="clear_cache_cancel">Cancel</string>
 </resources>

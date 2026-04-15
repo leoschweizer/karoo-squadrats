@@ -20,6 +20,9 @@ interface CollectedSquadratinhoDao {
     @Query("DELETE FROM collected_squadratinhos WHERE x BETWEEN :xMin AND :xMax AND y BETWEEN :yMin AND :yMax")
     suspend fun deleteInBounds(xMin: Int, xMax: Int, yMin: Int, yMax: Int)
 
+    @Query("DELETE FROM collected_squadratinhos")
+    suspend fun deleteAll()
+
     @Query("SELECT MAX(syncedAt) FROM collected_squadratinhos")
     suspend fun maxSyncedAt(): Long?
 }
