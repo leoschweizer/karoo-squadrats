@@ -90,7 +90,7 @@ class SquadratGridTest {
 
     @Test
     fun `tilesToRender returns empty below minimum zoom`() {
-        val tiles = SquadratGrid.tilesToRender(52.4, 13.06, 10.0, screenPx = 800)
+        val tiles = SquadratGrid.tilesToRender(52.4, 13.06, 9.0, screenPx = 800)
         assertTrue(tiles.isEmpty())
     }
 
