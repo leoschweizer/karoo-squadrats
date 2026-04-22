@@ -63,7 +63,7 @@ class Settings(context: Context) {
         val token = data[USER_TOKEN] ?: ""
         val ts = data[TILE_TIMESTAMP] ?: ""
         if (token.isEmpty() || ts.isEmpty()) return ""
-        return "https://tiles2.squadrats.com/$token/trophies/$ts/{z}/{x}/{y}.pbf"
+        return "https://tiles-beta.squadrats.com/$token/trophies-earth/$ts/{z}/{x}/{y}.pbf"
     }
 
     companion object {

@@ -33,9 +33,9 @@ Squadrats doesn't have a public API, but serves your data as vector map tiles. Y
 5. Reload the page - you should see tile requests appearing
 6. Click on any of the `.pbf` requests and look at its URL. Note down the token and timestamp:
    ```
-   https://tiles2.squadrats.com/abcDEF123xyz/trophies/1754233411401/12/2081/1367.pbf
-                                ^^^^^^^^^^^^          ^^^^^^^^^^^^^
-                                   TOKEN                TIMESTAMP
+   https://tiles-beta.squadrats.com/abcDEF123xyz/trophies-earth/1754233411401/12/2081/1367.pbf
+                                    ^^^^^^^^^^^^                ^^^^^^^^^^^^^
+                                       TOKEN                      TIMESTAMP
    ```
 
 > **Note:** Your token is personal. Keep it private.
