@@ -36,7 +36,6 @@ class MainActivity : AppCompatActivity() {
     private var syncJob: Job? = null
 
     private lateinit var editToken: EditText
-    private lateinit var editTimestamp: EditText
     private lateinit var editCenterLat: EditText
     private lateinit var editCenterLon: EditText
     private lateinit var editSyncRadius: EditText
@@ -76,7 +75,6 @@ class MainActivity : AppCompatActivity() {
 
         // Settings tab: credentials + display
         editToken = findViewById(R.id.editToken)
-        editTimestamp = findViewById(R.id.editTimestamp)
         val switchSquadratinhos = findViewById<SwitchMaterial>(R.id.switchSquadratinhos)
 
         // Cache tab
@@ -95,15 +93,11 @@ class MainActivity : AppCompatActivity() {
         // Load saved settings
         CoroutineScope(Dispatchers.Main).launch {
             editToken.setText(settings.getUserToken())
-            editTimestamp.setText(settings.getTileTimestamp())
             switchSquadratinhos.isChecked = settings.getSquadratinhosEnabled()
 
             // Auto-save credentials on edit (attached after loading to avoid triggering on setText)
             editToken.doAfterTextChanged { text ->
                 CoroutineScope(Dispatchers.IO).launch { settings.setUserToken(text.toString().trim()) }
-            }
-            editTimestamp.doAfterTextChanged { text ->
-                CoroutineScope(Dispatchers.IO).launch { settings.setTileTimestamp(text.toString().trim()) }
             }
         }
 
@@ -197,13 +191,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun startSync() {
         val token = editToken.text.toString().trim()
-        val timestamp = editTimestamp.text.toString().trim()
         if (token.isEmpty()) {
             Toast.makeText(this, "Enter your user token", Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (timestamp.isEmpty()) {
-            Toast.makeText(this, "Enter the timestamp", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -238,10 +227,21 @@ class MainActivity : AppCompatActivity() {
             settings.setCenterLon(lon)
             settings.setSyncRadiusKm(radiusKm)
 
+            val tsResult = tileRepo.fetchTimestamp(karooSystem, settings.getTimestampUrl())
+            if (tsResult is TileRepository.TimestampResult.Error) {
+                runOnUiThread {
+                    progressSync.visibility = View.GONE
+                    txtSyncStatus.text = syncErrorMessage(tsResult.syncError)
+                    btnSync.isEnabled = true
+                }
+                return@launch
+            }
+            val urlTemplate = settings.getTileUrlTemplate((tsResult as TileRepository.TimestampResult.Success).timestamp)
+
             val syncSquadratinhos = settings.getSquadratinhosEnabled()
             tileRepo.sync(
                 karooSystem,
-                settings.getTileUrlTemplate(),
+                urlTemplate,
                 lat,
                 lon,
                 radiusKm.toDouble(),
@@ -273,15 +273,7 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     override fun onError(error: TileRepository.SyncError) {
-                        val msg = when (error) {
-                            is TileRepository.SyncError.MissingCredentials -> getString(R.string.sync_error_missing_credentials)
-                            is TileRepository.SyncError.NoTilesInArea -> getString(R.string.sync_error_no_tiles)
-                            is TileRepository.SyncError.NetworkError -> getString(R.string.sync_error_network, error.detail ?: "")
-                            is TileRepository.SyncError.AuthError -> getString(R.string.sync_error_auth, error.statusCode)
-                            is TileRepository.SyncError.ServerError -> getString(R.string.sync_error_server, error.statusCode)
-                            is TileRepository.SyncError.HttpError -> getString(R.string.sync_error_http, error.statusCode)
-                            is TileRepository.SyncError.UnexpectedError -> getString(R.string.sync_error_unexpected, error.detail)
-                        }
+                        val msg = syncErrorMessage(error)
                         runOnUiThread {
                             progressSync.visibility = View.GONE
                             txtSyncStatus.text = msg
@@ -329,24 +321,36 @@ class MainActivity : AppCompatActivity() {
         btn.isEnabled = false
         btn.text = getString(R.string.test_credentials_testing)
         CoroutineScope(Dispatchers.IO).launch {
-            val urlTemplate = settings.getTileUrlTemplate()
+            val tsResult = tileRepo.fetchTimestamp(karooSystem, settings.getTimestampUrl())
+            if (tsResult is TileRepository.TimestampResult.Error) {
+                runOnUiThread {
+                    btn.isEnabled = true
+                    btn.text = getString(R.string.btn_test_credentials)
+                    val msg = syncErrorMessage(tsResult.syncError)
+                    Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                }
+                return@launch
+            }
+            val urlTemplate = settings.getTileUrlTemplate((tsResult as TileRepository.TimestampResult.Success).timestamp)
             val error = tileRepo.testCredentials(karooSystem, urlTemplate)
             runOnUiThread {
                 btn.isEnabled = true
                 btn.text = getString(R.string.btn_test_credentials)
                 val msg = if (error == null) {
                     getString(R.string.test_credentials_success)
-                } else when (error) {
-                    is TileRepository.SyncError.MissingCredentials -> getString(R.string.sync_error_missing_credentials)
-                    is TileRepository.SyncError.AuthError -> getString(R.string.sync_error_auth, error.statusCode)
-                    is TileRepository.SyncError.ServerError -> getString(R.string.sync_error_server, error.statusCode)
-                    is TileRepository.SyncError.NetworkError -> getString(R.string.sync_error_network, error.detail ?: "")
-                    is TileRepository.SyncError.HttpError -> getString(R.string.sync_error_http, error.statusCode)
-                    is TileRepository.SyncError.UnexpectedError -> getString(R.string.sync_error_unexpected, error.detail)
-                    is TileRepository.SyncError.NoTilesInArea -> getString(R.string.sync_error_no_tiles)
+                } else {
+                    syncErrorMessage(error)
                 }
                 Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private fun syncErrorMessage(error: TileRepository.SyncError): String = when (error) {
+        is TileRepository.SyncError.MissingCredentials -> getString(R.string.sync_error_missing_credentials)
+        is TileRepository.SyncError.NoTilesInArea -> getString(R.string.sync_error_no_tiles)
+        is TileRepository.SyncError.NetworkError -> getString(R.string.sync_error_network, error.detail ?: "")
+        is TileRepository.SyncError.HttpError -> getString(R.string.sync_error_http, error.statusCode)
+        is TileRepository.SyncError.UnexpectedError -> getString(R.string.sync_error_unexpected, error.detail)
     }
 }
