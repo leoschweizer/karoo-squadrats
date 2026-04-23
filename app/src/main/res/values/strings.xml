@@ -2,17 +2,14 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Squadrats Overlay</string>
     <string name="token_hint">User token</string>
-    <string name="timestamp_hint">Timestamp</string>
     <string name="sync_radius_label">Sync radius (km)</string>
     <string name="btn_sync">Sync Data</string>
     <string name="sync_status_running" tools:ignore="PluralsCandidate">Downloading… %1$d / %2$d tiles</string>
     <string name="sync_status_processing" tools:ignore="PluralsCandidate">Processing… %1$d / %2$d tiles</string>
-    <string name="sync_error_missing_credentials">Enter your user token and timestamp in Settings first</string>
+    <string name="sync_error_missing_credentials">Enter your user token in Settings first</string>
     <string name="sync_error_no_tiles">No tiles in the specified area</string>
     <string name="sync_error_network">Network error: %1$s</string>
-    <string name="sync_error_auth">Authentication failed (HTTP %1$d) — check your token</string>
-    <string name="sync_error_server">Server error (HTTP %1$d) — check your timestamp</string>
-    <string name="sync_error_http">HTTP error %1$d</string>
+    <string name="sync_error_http">Server error (HTTP %1$d) — check your token</string>
     <string name="sync_error_unexpected">Error: %1$s</string>
     <string name="center_lat_hint">Latitude</string>
     <string name="center_lon_hint">Longitude</string>

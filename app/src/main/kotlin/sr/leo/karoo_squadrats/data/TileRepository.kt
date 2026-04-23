@@ -6,6 +6,7 @@ import io.hammerhead.karooext.models.HttpResponseState
 import io.hammerhead.karooext.models.OnHttpResponse
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
+import org.json.JSONObject
 import sr.leo.karoo_squadrats.data.db.CollectedSquadrat
 import sr.leo.karoo_squadrats.data.db.CollectedSquadratDao
 import sr.leo.karoo_squadrats.data.db.CollectedSquadratinho
@@ -46,6 +47,37 @@ class TileRepository(
 
     suspend fun squadratCount(): Int = squadratDao.count()
 
+    sealed class TimestampResult {
+        data class Success(val timestamp: String) : TimestampResult()
+        data class Error(val syncError: SyncError) : TimestampResult()
+    }
+
+    /**
+     * Fetch the current tile timestamp from the Squadrats API.
+     */
+    suspend fun fetchTimestamp(
+        karooSystem: KarooSystemService,
+        url: String,
+    ): TimestampResult {
+        if (url.isEmpty()) return TimestampResult.Error(SyncError.MissingCredentials)
+        return when (val result = fetchTile(karooSystem, url)) {
+            is FetchResult.Error -> TimestampResult.Error(result.syncError)
+            is FetchResult.Success -> {
+                val body = result.body
+                if (body == null || body.isEmpty()) {
+                    return TimestampResult.Error(SyncError.UnexpectedError("Empty response"))
+                }
+                try {
+                    val json = JSONObject(String(body))
+                    val timestamp = json.getLong("timestamp").toString()
+                    TimestampResult.Success(timestamp)
+                } catch (e: Exception) {
+                    TimestampResult.Error(SyncError.UnexpectedError("Failed to parse timestamp: ${e.message}"))
+                }
+            }
+        }
+    }
+
     private sealed class FetchResult {
         data class Success(val body: ByteArray?) : FetchResult()
         data class Error(val syncError: SyncError) : FetchResult()
@@ -74,12 +106,7 @@ class TileRepository(
                 FetchResult.Success(body)
             } else {
                 Log.w(TAG, "Fetch $url: HTTP ${response.statusCode}")
-                val error = when (response.statusCode) {
-                    in 400..499 -> SyncError.AuthError(response.statusCode)
-                    in 500..599 -> SyncError.ServerError(response.statusCode)
-                    else -> SyncError.HttpError(response.statusCode)
-                }
-                FetchResult.Error(error)
+                FetchResult.Error(SyncError.HttpError(response.statusCode))
             }
         } catch (e: Exception) {
             Log.w(TAG, "Fetch $url: ${e.javaClass.simpleName}: ${e.message}")
@@ -111,8 +138,6 @@ class TileRepository(
         data object MissingCredentials : SyncError()
         data object NoTilesInArea : SyncError()
         data class NetworkError(val detail: String?) : SyncError()
-        data class AuthError(val statusCode: Int) : SyncError()
-        data class ServerError(val statusCode: Int) : SyncError()
         data class HttpError(val statusCode: Int) : SyncError()
         data class UnexpectedError(val detail: String) : SyncError()
     }

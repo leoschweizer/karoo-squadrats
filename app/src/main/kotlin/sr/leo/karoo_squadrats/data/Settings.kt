@@ -23,13 +23,6 @@ class Settings(context: Context) {
         dataStore.edit { it[USER_TOKEN] = value }
     }
 
-    suspend fun getTileTimestamp(): String =
-        dataStore.data.first()[TILE_TIMESTAMP] ?: ""
-
-    suspend fun setTileTimestamp(value: String) {
-        dataStore.edit { it[TILE_TIMESTAMP] = value }
-    }
-
     suspend fun getCenterLat(): Double =
         dataStore.data.first()[CENTER_LAT] ?: 0.0
 
@@ -58,17 +51,20 @@ class Settings(context: Context) {
         dataStore.edit { it[SQUADRATINHOS_ENABLED] = value }
     }
 
-    suspend fun getTileUrlTemplate(): String {
-        val data = dataStore.data.first()
-        val token = data[USER_TOKEN] ?: ""
-        val ts = data[TILE_TIMESTAMP] ?: ""
-        if (token.isEmpty() || ts.isEmpty()) return ""
-        return "https://tiles-beta.squadrats.com/$token/trophies-earth/$ts/{z}/{x}/{y}.pbf"
+    suspend fun getTileUrlTemplate(timestamp: String): String {
+        val token = dataStore.data.first()[USER_TOKEN] ?: ""
+        if (token.isEmpty() || timestamp.isEmpty()) return ""
+        return "https://tiles-beta.squadrats.com/$token/trophies-earth/$timestamp/{z}/{x}/{y}.pbf"
+    }
+
+    suspend fun getTimestampUrl(): String {
+        val token = dataStore.data.first()[USER_TOKEN] ?: ""
+        if (token.isEmpty()) return ""
+        return "https://mainframe-api.squadrats.com/anonymous/squadrants/$token/geojson"
     }
 
     companion object {
         private val USER_TOKEN = stringPreferencesKey("user_token")
-        private val TILE_TIMESTAMP = stringPreferencesKey("tile_timestamp")
         private val CENTER_LAT = doublePreferencesKey("center_lat")
         private val CENTER_LON = doublePreferencesKey("center_lon")
         private val SYNC_RADIUS = intPreferencesKey("sync_radius_km")
