@@ -5,8 +5,8 @@ import kotlin.math.pow
 
 enum class ZoomLevel(val z: Int, val fetchZoom: Int, val minMapZoom: Double, val scrollBuffer: Double) {
     // the map page default cycle of zooms uses value [13.0, 15.0, 16.0]
-    SQUADRAT(14, 10, 10.0, 0.5),
-    SQUADRATINHO(17, 12, 13.0, 0.25),
+    SQUADRAT(14, 10, 12.0, 0.5),
+    SQUADRATINHO(17, 12, 14.0, 0.25),
     ;
 
     /**
