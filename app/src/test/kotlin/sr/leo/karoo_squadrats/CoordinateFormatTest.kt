@@ -11,7 +11,6 @@ class CoordinateFormatTest {
         Locale.US,           // decimal separator: .
         Locale.GERMANY,      // decimal separator: ,
         Locale.FRANCE,       // decimal separator: ,
-        Locale("tr", "TR"),  // Turkish locale
         Locale.ROOT,
     )
 

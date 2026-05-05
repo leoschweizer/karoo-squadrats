@@ -117,6 +117,7 @@
                     android:layout_height="wrap_content"
                     android:hint="@string/center_lat_hint"
                     android:inputType="numberDecimal|numberSigned"
+                    android:digits="0123456789.,-"
                     android:imeOptions="actionNext"
                     android:nextFocusForward="@+id/editCenterLon" />
             </com.google.android.material.textfield.TextInputLayout>
@@ -133,6 +134,7 @@
                     android:layout_height="wrap_content"
                     android:hint="@string/center_lon_hint"
                     android:inputType="numberDecimal|numberSigned"
+                    android:digits="0123456789.,-"
                     android:imeOptions="actionNext"
                     android:nextFocusForward="@+id/editSyncRadius" />
             </com.google.android.material.textfield.TextInputLayout>
