@@ -29,6 +29,8 @@
     <string name="section_display">Display</string>
     <string name="setting_squadratinhos">Show Squadratinhos</string>
     <string name="setting_squadratinhos_desc">Visible when zoomed in. Sync data again after enabling.</string>
+    <string name="setting_live_collection">Live Collection</string>
+    <string name="setting_live_collection_desc">While recording a ride, highlight squares as soon as you enter them, and add them to the cache once the ride ends.</string>
     <string name="btn_clear_cache">Clear Cache</string>
     <string name="btn_test_credentials">Test Credentials</string>
     <string name="test_credentials_testing">Testing…</string>

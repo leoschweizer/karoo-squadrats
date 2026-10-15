@@ -36,6 +36,51 @@ object SquadratGrid {
         return TileCoord(x, y)
     }
 
+    /**
+     * Same projection as [lonLatToTile], but unfloored - a continuous position in tile space,
+     * usable as a segment endpoint for [tilesAlongSegment].
+     */
+    fun lonLatToTileFraction(lon: Double, lat: Double, zoom: Int): Pair<Double, Double> {
+        val n = 2.0.pow(zoom)
+        val clampedLat = lat.coerceIn(-85.05112878, 85.05112878)
+        val x = (lon + 180.0) / 360.0 * n
+        val latRad = Math.toRadians(clampedLat)
+        val y = (1.0 - ln(tan(latRad) + 1.0 / cos(latRad)) / PI) / 2.0 * n
+        return x to y
+    }
+
+    /**
+     * All tiles the straight segment from (x0,y0) to (x1,y1) (continuous tile-space
+     * coordinates, see [lonLatToTileFraction]) passes through, including both endpoint tiles.
+     * Computed via exact grid-line crossings (parametric t-values), not fixed-step
+     * supersampling - immune to missing a narrow crossing regardless of segment length.
+     */
+    fun tilesAlongSegment(x0: Double, y0: Double, x1: Double, y1: Double): List<TileCoord> {
+        val ts = sortedSetOf(0.0, 1.0)
+        for ((a0, a1) in listOf(x0 to x1, y0 to y1)) {
+            if (a1 != a0) {
+                val lo = minOf(a0, a1)
+                val hi = maxOf(a0, a1)
+                var k = floor(lo).toInt() + 1
+                while (k <= hi) {
+                    if (lo < k && k < hi) {
+                        ts.add((k - a0) / (a1 - a0))
+                    }
+                    k++
+                }
+            }
+        }
+        val sortedTs = ts.toList()
+        val tiles = mutableListOf<TileCoord>()
+        for (i in 0 until sortedTs.size - 1) {
+            val mid = (sortedTs[i] + sortedTs[i + 1]) / 2.0
+            val mx = x0 + (x1 - x0) * mid
+            val my = y0 + (y1 - y0) * mid
+            tiles.add(TileCoord(floor(mx).toInt(), floor(my).toInt()))
+        }
+        return tiles
+    }
+
     fun tileBounds(tile: TileCoord, zoom: ZoomLevel = ZoomLevel.SQUADRAT): TileBounds {
         val n = 2.0.pow(zoom.z).toInt()
         val lonMin = tile.x.toDouble() / n * 360.0 - 180.0

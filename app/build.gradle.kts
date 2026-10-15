@@ -14,6 +14,10 @@ android {
         targetSdk = 36
         versionCode = providers.environmentVariable("VERSION_CODE").map { it.toInt() }.getOrElse(1)
         versionName = providers.environmentVariable("VERSION_NAME").getOrElse("dev")
+
+        // Karoo identifies extensions by this id (see res/xml/extension_info.xml), not by
+        // Android package name.
+        buildConfigField("String", "EXTENSION_ID", "\"karoo-squadrats\"")
     }
 
     signingConfigs {
