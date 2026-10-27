@@ -4,4 +4,9 @@
     icon="@drawable/ic_squadrats"
     id="karoo-squadrats"
     scansDevices="false"
-    mapLayer="true" />
+    mapLayer="true">
+
+    <BonusAction
+        displayName="@string/action_toggle_squadrats"
+        actionId="toggle-squadrats" />
+</ExtensionInfo>

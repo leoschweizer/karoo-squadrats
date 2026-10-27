@@ -27,8 +27,13 @@
     <string name="tab_cache">Cache</string>
     <string name="tab_settings">Settings</string>
     <string name="section_display">Display</string>
+    <string name="setting_squadrats">Show Squadrats</string>
+    <string name="setting_squadrats_desc">Visible when zoomed in. Uncollected Squadrats are drawn as grid outlines.</string>
     <string name="setting_squadratinhos">Show Squadratinhos</string>
     <string name="setting_squadratinhos_desc">Visible when zoomed in. Sync data again after enabling.</string>
+    <string name="action_toggle_squadrats">Toggle Squadrats</string>
+    <string name="alert_squadrats_on">Squadrats overlay on</string>
+    <string name="alert_squadrats_off">Squadrats overlay off</string>
     <string name="btn_clear_cache">Clear Cache</string>
     <string name="btn_test_credentials">Test Credentials</string>
     <string name="test_credentials_testing">Testing…</string>
