@@ -44,6 +44,13 @@ class Settings(context: Context) {
         dataStore.edit { it[SYNC_RADIUS] = value }
     }
 
+    suspend fun getSquadratsEnabled(): Boolean =
+        dataStore.data.first()[SQUADRATS_ENABLED] ?: true
+
+    suspend fun setSquadratsEnabled(value: Boolean) {
+        dataStore.edit { it[SQUADRATS_ENABLED] = value }
+    }
+
     suspend fun getSquadratinhosEnabled(): Boolean =
         dataStore.data.first()[SQUADRATINHOS_ENABLED] ?: false
 
@@ -68,6 +75,7 @@ class Settings(context: Context) {
         private val CENTER_LAT = doublePreferencesKey("center_lat")
         private val CENTER_LON = doublePreferencesKey("center_lon")
         private val SYNC_RADIUS = intPreferencesKey("sync_radius_km")
+        private val SQUADRATS_ENABLED = booleanPreferencesKey("squadrats_enabled")
         private val SQUADRATINHOS_ENABLED = booleanPreferencesKey("squadratinhos_enabled")
     }
 }

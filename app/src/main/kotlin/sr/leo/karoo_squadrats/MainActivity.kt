@@ -75,6 +75,7 @@ class MainActivity : AppCompatActivity() {
 
         // Settings tab: credentials + display
         editToken = findViewById(R.id.editToken)
+        val switchSquadrats = findViewById<SwitchMaterial>(R.id.switchSquadrats)
         val switchSquadratinhos = findViewById<SwitchMaterial>(R.id.switchSquadratinhos)
 
         // Cache tab
@@ -93,11 +94,18 @@ class MainActivity : AppCompatActivity() {
         // Load saved settings
         CoroutineScope(Dispatchers.Main).launch {
             editToken.setText(settings.getUserToken())
+            switchSquadrats.isChecked = settings.getSquadratsEnabled()
             switchSquadratinhos.isChecked = settings.getSquadratinhosEnabled()
 
             // Auto-save credentials on edit (attached after loading to avoid triggering on setText)
             editToken.doAfterTextChanged { text ->
                 CoroutineScope(Dispatchers.IO).launch { settings.setUserToken(text.toString().trim()) }
+            }
+        }
+
+        switchSquadrats.setOnCheckedChangeListener { _, isChecked ->
+            CoroutineScope(Dispatchers.IO).launch {
+                settings.setSquadratsEnabled(isChecked)
             }
         }
 

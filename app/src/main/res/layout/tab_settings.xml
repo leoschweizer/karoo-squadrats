@@ -54,6 +54,22 @@
             android:textStyle="bold" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/switchSquadrats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="2dp"
+            android:text="@string/setting_squadrats" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:paddingStart="4dp"
+            android:text="@string/setting_squadrats_desc"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="12sp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/switchSquadratinhos"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

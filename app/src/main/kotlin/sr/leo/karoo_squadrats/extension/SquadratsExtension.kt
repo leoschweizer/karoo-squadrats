@@ -102,22 +102,26 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
 
                     val screenPx = resources.displayMetrics.let { maxOf(it.widthPixels, it.heightPixels) }
 
-                    // --- Squadrats (z=14) ---
-                    val sqTiles = SquadratGrid.tilesToRender(lat, lon, zoom, screenPx = screenPx)
-                    if (sqTiles.isEmpty()) return@collect
-
                     val width = lineWidth(zoom)
                     val newPolylineIds = mutableSetOf<String>()
 
-                    val sqCollected = tileRepo.collectedSquadratsInBounds(
-                        sqTiles.minOf { it.x }, sqTiles.maxOf { it.x },
-                        sqTiles.minOf { it.y }, sqTiles.maxOf { it.y },
-                    )
-                    val sqUncollected = sqTiles.mapTo(mutableSetOf()) { it.toKey() } - sqCollected
-                    val sqGrid = ContourExtractor.extract(sqUncollected)
-                    emitGridLines(sqGrid, "sq", GridStyle.SQUADRAT, width, emitter, newPolylineIds)
+                    // --- Squadrats (z=14) ---
+                    val sqTiles = if (settings.getSquadratsEnabled()) {
+                        SquadratGrid.tilesToRender(lat, lon, zoom, screenPx = screenPx)
+                    } else {
+                        emptyList()
+                    }
+                    if (sqTiles.isNotEmpty()) {
+                        val sqCollected = tileRepo.collectedSquadratsInBounds(
+                            sqTiles.minOf { it.x }, sqTiles.maxOf { it.x },
+                            sqTiles.minOf { it.y }, sqTiles.maxOf { it.y },
+                        )
+                        val sqUncollected = sqTiles.mapTo(mutableSetOf()) { it.toKey() } - sqCollected
+                        val sqGrid = ContourExtractor.extract(sqUncollected)
+                        emitGridLines(sqGrid, "sq", GridStyle.SQUADRAT, width, emitter, newPolylineIds)
 
-                    Log.d(TAG, "Squadrats: ${sqTiles.size} render tiles, ${sqCollected.size} collected")
+                        Log.d(TAG, "Squadrats: ${sqTiles.size} render tiles, ${sqCollected.size} collected")
+                    }
 
                     // --- Squadratinhos (z=17) ---
                     if (zoom >= ZoomLevel.SQUADRATINHO.minMapZoom && settings.getSquadratinhosEnabled()) {
