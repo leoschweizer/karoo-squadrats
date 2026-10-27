@@ -9,7 +9,10 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "squadrats_settings")
 
@@ -46,6 +49,10 @@ class Settings(context: Context) {
 
     suspend fun getSquadratsEnabled(): Boolean =
         dataStore.data.first()[SQUADRATS_ENABLED] ?: true
+
+    val squadratsEnabled: Flow<Boolean> = dataStore.data
+        .map { it[SQUADRATS_ENABLED] ?: true }
+        .distinctUntilChanged()
 
     suspend fun setSquadratsEnabled(value: Boolean) {
         dataStore.edit { it[SQUADRATS_ENABLED] = value }

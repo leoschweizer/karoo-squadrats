@@ -2,10 +2,12 @@ package sr.leo.karoo_squadrats.extension
 
 import android.util.Log
 import sr.leo.karoo_squadrats.BuildConfig
+import sr.leo.karoo_squadrats.R
 import io.hammerhead.karooext.KarooSystemService
 import io.hammerhead.karooext.extension.KarooExtension
 import io.hammerhead.karooext.internal.Emitter
 import io.hammerhead.karooext.models.HidePolyline
+import io.hammerhead.karooext.models.InRideAlert
 import io.hammerhead.karooext.models.MapEffect
 import io.hammerhead.karooext.models.OnLocationChanged
 import io.hammerhead.karooext.models.OnMapZoomLevel
@@ -19,7 +21,8 @@ import sr.leo.karoo_squadrats.map.ContourExtractor
 import sr.leo.karoo_squadrats.map.PolylineEncoder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
@@ -31,7 +34,7 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
     private lateinit var karooSystem: KarooSystemService
     private lateinit var settings: Settings
     private lateinit var tileRepo: TileRepository
-    private var serviceJob: Job? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
@@ -39,16 +42,38 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
         settings = Settings(this)
         val db = SquadratsDatabase.getInstance(this)
         tileRepo = TileRepository(db.collectedSquadratDao(), db.collectedSquadratinhoDao())
-        serviceJob = CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             karooSystem.connect()
         }
     }
 
     override fun onDestroy() {
-        serviceJob?.cancel()
-        serviceJob = null
+        scope.cancel()
         karooSystem.disconnect()
         super.onDestroy()
+    }
+
+    override fun onBonusAction(actionId: String) {
+        if (actionId != ACTION_TOGGLE_SQUADRATS) {
+            Log.w(TAG, "Unknown bonus action: $actionId")
+            return
+        }
+        scope.launch {
+            val enabled = !settings.getSquadratsEnabled()
+            settings.setSquadratsEnabled(enabled)
+            val alerted = karooSystem.dispatch(
+                InRideAlert(
+                    id = "squadrats-toggle-${System.currentTimeMillis()}",
+                    icon = R.drawable.ic_squadrats,
+                    title = getString(if (enabled) R.string.alert_squadrats_on else R.string.alert_squadrats_off),
+                    detail = null,
+                    autoDismissMs = 3_000,
+                    backgroundColor = R.color.squadrats_purple_dark,
+                    textColor = R.color.white,
+                ),
+            )
+            if (!alerted) Log.w(TAG, "Could not show alert for Squadrats toggle")
+        }
     }
 
     @OptIn(kotlinx.coroutines.FlowPreview::class)
@@ -57,6 +82,7 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
         var lastDrawLat = Double.NaN
         var lastDrawLon = Double.NaN
         var lastDrawZoom = Double.NaN
+        var lastSquadratsEnabled: Boolean? = null
 
         val job = CoroutineScope(Dispatchers.IO).launch {
             // Seed location flow with last-known position so tiles render before first GPS fix
@@ -75,11 +101,12 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
             combine(
                 seededLocationFlow,
                 karooSystem.consumerFlow<OnMapZoomLevel>(),
-            ) { location, mapZoom ->
-                Pair(location, mapZoom)
+                settings.squadratsEnabled,
+            ) { location, mapZoom, squadratsEnabled ->
+                Triple(location, mapZoom, squadratsEnabled)
             }
                 .debounce(300)
-                .collect { (location, mapZoom) ->
+                .collect { (location, mapZoom, squadratsEnabled) ->
                     val lat = location.lat
                     val lon = location.lng
                     val zoom = mapZoom.zoomLevel
@@ -87,8 +114,10 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
                     Log.d(TAG, "Map update: lat=$lat lon=$lon zoom=$zoom")
                     if (lat == 0.0 && lon == 0.0) return@collect
 
-                    // Only redraw when zoom changed or GPS moved enough (~25% of visible area)
-                    if (!lastDrawZoom.isNaN() && zoom == lastDrawZoom) {
+                    // Only redraw when zoom changed or GPS moved enough (~25% of visible area),
+                    // but always redraw when the layer is toggled
+                    val layerToggled = squadratsEnabled != lastSquadratsEnabled
+                    if (!layerToggled && !lastDrawZoom.isNaN() && zoom == lastDrawZoom) {
                         val cosLat = cos(Math.toRadians(lat)).coerceAtLeast(0.01)
                         val dLat = abs(lat - lastDrawLat)
                         val dLon = abs(lon - lastDrawLon) * cosLat
@@ -99,6 +128,7 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
                     lastDrawLat = lat
                     lastDrawLon = lon
                     lastDrawZoom = zoom
+                    lastSquadratsEnabled = squadratsEnabled
 
                     val screenPx = resources.displayMetrics.let { maxOf(it.widthPixels, it.heightPixels) }
 
@@ -106,7 +136,7 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
                     val newPolylineIds = mutableSetOf<String>()
 
                     // --- Squadrats (z=14) ---
-                    val sqTiles = if (settings.getSquadratsEnabled()) {
+                    val sqTiles = if (squadratsEnabled) {
                         SquadratGrid.tilesToRender(lat, lon, zoom, screenPx = screenPx)
                     } else {
                         emptyList()
@@ -162,6 +192,9 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
 
     companion object {
         private const val TAG = "SquadratMap"
+
+        // Matches the actionId in res/xml/extension_info.xml
+        private const val ACTION_TOGGLE_SQUADRATS = "toggle-squadrats"
 
         private fun emitGridLines(
             gridLines: ContourExtractor.GridLines,

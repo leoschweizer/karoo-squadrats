@@ -53,6 +53,7 @@ Squadrats doesn't have a public API, but serves your data as vector map tiles. Y
 1. Once synced, uncollected Squadrats appear as purple rectangle outlines on map pages
 2. As you ride into a Squadrat and collect it, it will still show until you re-sync (since data is pre-cached)
 3. Re-sync data at home before each ride (while on WiFi). Previously collected squares will no longer appear as outlines.
+4. To hide or show the grid during a ride, assign the extension's **Toggle Squadrats** action to a controller button, or use the Display switches on the app's Settings screen
 
 ## Building from Source
 
