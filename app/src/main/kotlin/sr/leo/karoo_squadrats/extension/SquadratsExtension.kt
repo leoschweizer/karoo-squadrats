@@ -291,6 +291,31 @@ class SquadratsExtension : KarooExtension("karoo-squadrats", BuildConfig.VERSION
             recentlyEnteredSquadratinhos.clear()
         }
 
+        /**
+         * Drops only the live-entered tiles the latest sync confirms as collected, leaving the
+         * rest marked entered. A tile can come back unconfirmed because Squadrats hasn't
+         * processed that ride yet, not because it wasn't actually ridden - clearing it anyway
+         * would flip it back to the plain uncollected look until some later sync catches up.
+         */
+        suspend fun retainUnconfirmedEntered(tileRepo: TileRepository) {
+            if (recentlyEnteredSquadrats.isNotEmpty()) {
+                val coords = recentlyEnteredSquadrats.map { SquadratGrid.TileCoord.fromKey(it) }
+                val confirmed = tileRepo.collectedSquadratsInBounds(
+                    coords.minOf { it.x }, coords.maxOf { it.x },
+                    coords.minOf { it.y }, coords.maxOf { it.y },
+                )
+                recentlyEnteredSquadrats.removeAll(confirmed)
+            }
+            if (recentlyEnteredSquadratinhos.isNotEmpty()) {
+                val coords = recentlyEnteredSquadratinhos.map { SquadratGrid.TileCoord.fromKey(it) }
+                val confirmed = tileRepo.collectedSquadratinhosInBounds(
+                    coords.minOf { it.x }, coords.maxOf { it.x },
+                    coords.minOf { it.y }, coords.maxOf { it.y },
+                )
+                recentlyEnteredSquadratinhos.removeAll(confirmed)
+            }
+        }
+
         private fun emitGridLines(
             gridLines: ContourExtractor.GridLines,
             idPrefix: String,

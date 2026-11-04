@@ -272,8 +272,8 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
 
-                    override fun onComplete(collected: Int, total: Int) {
-                        SquadratsExtension.clearRecentlyEntered()
+                    override suspend fun onComplete(collected: Int, total: Int) {
+                        SquadratsExtension.retainUnconfirmedEntered(tileRepo)
                         runOnUiThread {
                             progressSync.visibility = View.GONE
                             txtSyncStatus.visibility = View.GONE
