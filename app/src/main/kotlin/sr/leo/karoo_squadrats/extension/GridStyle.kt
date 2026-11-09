@@ -18,7 +18,15 @@ enum class GridStyle(
     ) {
         override fun contourWidth(baseWidth: Int) = (gridWidth(baseWidth) + 1).coerceAtMost(baseWidth)
         override fun gridWidth(baseWidth: Int) = (baseWidth - 1).coerceAtLeast(1)
-    };
+    },
+
+    /** Tiles entered live but not yet confirmed collected via sync. */
+    ENTERED(
+        contourColor = 0xFF2ECC71.toInt(),
+        gridColor = 0x662ECC71,
+        shadeColor = 0x332ECC71,
+        shadeExtraWidth = 6,
+    );
 
     open fun contourWidth(baseWidth: Int): Int = baseWidth
     open fun gridWidth(baseWidth: Int): Int = baseWidth

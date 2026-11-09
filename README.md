@@ -54,6 +54,16 @@ Squadrats doesn't have a public API, but serves your data as vector map tiles. Y
 2. As you ride into a Squadrat and collect it, it will still show until you re-sync (since data is pre-cached)
 3. Re-sync data at home before each ride (while on WiFi). Previously collected squares will no longer appear as outlines.
 
+### Live Collection
+
+While recording a ride, squares you enter for the first time are highlighted in a distinct color
+as soon as you cross into them, even before your next sync. This requires an active ride
+recording (so there's a FIT file as proof). The highlight is not written to the cache and only
+lives in memory, since a ride may never actually be uploaded to or processed by Squadrats - it
+stays until your next sync confirms (or refutes) those squares for real, or until the extension
+restarts. An app or map crash mid-ride only loses the highlight, never any confirmed data. The
+Live Collection feature as a whole can be turned on or off on the Settings screen.
+
 ## Building from Source
 
 ### Requirements

@@ -145,7 +145,7 @@ class TileRepository(
     interface SyncCallback {
         fun onProgress(fetched: Int, total: Int)
         fun onProcessingProgress(processed: Int, total: Int)
-        fun onComplete(collected: Int, total: Int)
+        suspend fun onComplete(collected: Int, total: Int)
         fun onError(error: SyncError)
     }
 

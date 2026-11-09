@@ -25,6 +25,7 @@ import sr.leo.karoo_squadrats.data.CoordinateFormat
 import sr.leo.karoo_squadrats.data.Settings
 import sr.leo.karoo_squadrats.data.TileRepository
 import sr.leo.karoo_squadrats.data.db.SquadratsDatabase
+import sr.leo.karoo_squadrats.extension.SquadratsExtension
 
 @SuppressLint("DefaultLocale", "SetTextI18n")
 class MainActivity : AppCompatActivity() {
@@ -76,6 +77,7 @@ class MainActivity : AppCompatActivity() {
         // Settings tab: credentials + display
         editToken = findViewById(R.id.editToken)
         val switchSquadratinhos = findViewById<SwitchMaterial>(R.id.switchSquadratinhos)
+        val switchLiveCollection = findViewById<SwitchMaterial>(R.id.switchLiveCollection)
 
         // Cache tab
         editCenterLat = findViewById(R.id.editCenterLat)
@@ -94,6 +96,7 @@ class MainActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.Main).launch {
             editToken.setText(settings.getUserToken())
             switchSquadratinhos.isChecked = settings.getSquadratinhosEnabled()
+            switchLiveCollection.isChecked = settings.getLiveCollectionEnabled()
 
             // Auto-save credentials on edit (attached after loading to avoid triggering on setText)
             editToken.doAfterTextChanged { text ->
@@ -104,6 +107,12 @@ class MainActivity : AppCompatActivity() {
         switchSquadratinhos.setOnCheckedChangeListener { _, isChecked ->
             CoroutineScope(Dispatchers.IO).launch {
                 settings.setSquadratinhosEnabled(isChecked)
+            }
+        }
+
+        switchLiveCollection.setOnCheckedChangeListener { _, isChecked ->
+            CoroutineScope(Dispatchers.IO).launch {
+                settings.setLiveCollectionEnabled(isChecked)
             }
         }
 
@@ -263,7 +272,8 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
 
-                    override fun onComplete(collected: Int, total: Int) {
+                    override suspend fun onComplete(collected: Int, total: Int) {
+                        SquadratsExtension.retainUnconfirmedEntered(tileRepo)
                         runOnUiThread {
                             progressSync.visibility = View.GONE
                             txtSyncStatus.visibility = View.GONE
@@ -310,6 +320,7 @@ class MainActivity : AppCompatActivity() {
                 CoroutineScope(Dispatchers.IO).launch {
                     db.collectedSquadratDao().deleteAll()
                     db.collectedSquadratinhoDao().deleteAll()
+                    SquadratsExtension.clearRecentlyEntered()
                     CoroutineScope(Dispatchers.Main).launch { updateInfoSection(db) }
                 }
             }
